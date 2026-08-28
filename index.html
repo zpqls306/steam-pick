@@ -91,7 +91,7 @@
     <button class="lockBtn" id="lockBtn" title="관리자 모드">🔒</button>
   </div>
   <div class="sub">사람들이 추천해준 스팀 게임들을 모아봤어요.</div>
-  <div class="verTag">버전: 2026-08-25 v2 (가격/할인율 표시 추가)</div>
+  <div class="verTag">버전: 2026-08-25 v3 (이미지 폴백, 가격 요청 순차 처리)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -241,7 +241,8 @@ function priceHtml(price){
 // ---------- 갤러리 렌더링 (모두에게 보임) ----------
 function renderGallery(){
   const grid = document.getElementById('gameGrid');
-  const entries = Object.entries(GAMES);
+  const entries = Object.entries(GAMES)
+    .sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0));
   grid.innerHTML = '';
 
   if(entries.length === 0){
@@ -249,29 +250,55 @@ function renderGallery(){
     return;
   }
 
-  entries
-    .sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0))
-    .forEach(([gid, g]) => {
-      const card = document.createElement('a');
-      card.className = 'gameCard';
-      card.href = g.url;
-      card.target = '_blank';
-      card.rel = 'noopener noreferrer';
-      card.innerHTML = `
-        <img class="thumb" src="${escapeHtml(g.img)}" alt="" loading="lazy" onerror="this.style.display='none'">
-        <div class="info">
-          <div class="gTitle">${escapeHtml(g.title)}</div>
-          <div class="gBy"><b>${escapeHtml(g.by)}</b> 님 추천</div>
-          <div class="priceLine" id="price-${escapeHtml(gid)}"><span class="priceLoading">가격 불러오는 중...</span></div>
-        </div>
-      `;
-      grid.appendChild(card);
-
-      fetchSteamPrice(g.appid).then(price => {
-        const el = document.getElementById('price-' + gid);
-        if(el) el.innerHTML = priceHtml(price);
-      });
+  entries.forEach(([gid, g]) => {
+    const card = document.createElement('a');
+    card.className = 'gameCard';
+    card.href = g.url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    // 이미지 폴백 체인: header.jpg 실패 시 다른 스팀 이미지 규격들을 순서대로 시도
+    const fallbacks = [
+      'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/header.jpg',
+      'https://cdn.cloudflare.steamstatic.com/steam/apps/' + g.appid + '/header.jpg',
+      'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/capsule_616x353.jpg',
+      'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/library_600x900.jpg'
+    ];
+    card.innerHTML = `
+      <img class="thumb" src="${escapeHtml(fallbacks[0])}" alt=""
+        data-fallbacks='${JSON.stringify(fallbacks)}' data-fallback-idx="0" loading="lazy">
+      <div class="info">
+        <div class="gTitle">${escapeHtml(g.title)}</div>
+        <div class="gBy"><b>${escapeHtml(g.by)}</b> 님 추천</div>
+        <div class="priceLine" id="price-${escapeHtml(gid)}"><span class="priceLoading">대기 중...</span></div>
+      </div>
+    `;
+    const img = card.querySelector('img');
+    img.addEventListener('error', function(){
+      const list = JSON.parse(this.dataset.fallbacks);
+      const idx = parseInt(this.dataset.fallbackIdx, 10) + 1;
+      if(idx < list.length){
+        this.dataset.fallbackIdx = idx;
+        this.src = list[idx];
+      } else {
+        this.style.display = 'none';
+      }
     });
+    grid.appendChild(card);
+  });
+
+  // 가격은 동시에 다 쏘지 않고 하나씩 순서대로 (프록시 과부하로 인한 408/401 실패 방지)
+  loadPricesSequentially(entries);
+}
+
+async function loadPricesSequentially(entries){
+  for(const [gid, g] of entries){
+    const el = document.getElementById('price-' + gid);
+    if(el) el.innerHTML = '<span class="priceLoading">가격 불러오는 중...</span>';
+    const price = await fetchSteamPrice(g.appid);
+    const el2 = document.getElementById('price-' + gid);
+    if(el2) el2.innerHTML = priceHtml(price);
+    await new Promise(resolve => setTimeout(resolve, 350)); // 프록시에 숨 돌릴 시간
+  }
 }
 
 // ---------- 관리자 목록 렌더링 (관리자만 보임) ----------
