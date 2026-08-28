@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 추천 갤러리</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Pretendard:wght@400;500;600;700;800&display=swap');
+  @font-face{
+    font-family:'Pretendard Fallback';
+    src:local('Malgun Gothic'),local('Apple SD Gothic Neo');
+  }
+  :root{
+    --bg:#0a0e14; --panel:#12171f; --panel2:#161c26; --border:#20293a; --text:#e9eef5;
+    --sub:#7d8ba0; --accent:#66c0f4; --accent2:#ff2d6f; --gold:#ffd60a;
+    --font-display:'Rajdhani','Pretendard','Pretendard Fallback',sans-serif;
+    --font-body:'Pretendard','Pretendard Fallback',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:32px 16px 100px;
+    background:radial-gradient(ellipse 900px 500px at 50% -10%, rgba(102,192,244,.08), transparent 60%), var(--bg);
+    color:var(--text);font-family:var(--font-body);
+  }
+  .wrap{max-width:860px;margin:0 auto;}
+
+  .appHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
+  h1{font-family:var(--font-display);font-size:24px;font-weight:700;margin:0;display:flex;align-items:center;gap:9px;}
+  .sub{color:var(--sub);font-size:13.5px;margin-bottom:22px;}
+  .lockBtn{background:var(--panel2);border:1px solid var(--border);color:var(--sub);border-radius:8px;
+    padding:9px 13px;font-size:15px;cursor:pointer;}
+  .lockBtn:hover{color:var(--accent);border-color:var(--accent);}
+  .lockBtn.unlocked{color:var(--gold);border-color:var(--gold);}
+
+  .adminCard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:22px;
+    display:none;position:relative;overflow:hidden;}
+  .adminCard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--accent2));}
+  .adminCard.show{display:block;}
+  .adminCard h3{font-family:var(--font-display);font-size:15px;margin:0 0 14px;color:var(--gold);}
+  label{font-family:var(--font-display);font-size:11.5px;font-weight:600;letter-spacing:.5px;color:var(--sub);
+    display:block;margin-bottom:6px;text-transform:uppercase;}
+  input[type=text],input[type=password]{width:100%;background:#04060a;color:var(--accent);border:1px solid var(--border);
+    border-radius:6px;font-size:13.5px;padding:10px 12px;font-family:'Rajdhani',monospace;}
+  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(102,192,244,.12);}
+  .formRow{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .formRow > div{flex:1;min-width:160px;}
+  button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13px;padding:10px 18px;font-family:var(--font-body);}
+  .btnPrimary{background:var(--accent);color:#04121c;font-weight:800;}
+  .btnGhost{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+  .btnGhost:hover{border-color:var(--accent);color:var(--accent);}
+  .err{color:var(--accent2);font-size:12px;margin-top:8px;display:none;}
+  .adminListItem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #1a212e;font-size:12.5px;}
+  .adminListItem:last-child{border-bottom:none;}
+  .adminListItem .aTitle{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .adminListItem .delBtn{background:none;color:var(--sub);font-size:14px;padding:2px 6px;}
+  .adminListItem .delBtn:hover{color:var(--accent2);}
+
+  .pinModalBg{display:none;position:fixed;inset:0;background:rgba(4,6,10,.8);z-index:9999;
+    align-items:center;justify-content:center;padding:20px;}
+  .pinModalBg.open{display:flex;}
+  .pinModalBox{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:22px;max-width:320px;width:100%;}
+  .pinModalBox h3{font-family:var(--font-display);font-size:15px;margin:0 0 12px;}
+
+  .gameGrid{display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:16px;}
+  .gameCard{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;
+    text-decoration:none;color:var(--text);transition:transform .15s ease, border-color .15s ease;display:block;}
+  .gameCard:hover{transform:translateY(-3px);border-color:var(--accent);}
+  .gameCard .thumb{width:100%;aspect-ratio:460/215;object-fit:cover;background:#0d1119;display:block;}
+  .gameCard .info{padding:12px 14px;}
+  .gameCard .gTitle{font-weight:700;font-size:13.5px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;}
+  .gameCard .gBy{font-size:11.5px;color:var(--sub);}
+  .gameCard .gBy b{color:var(--accent);}
+  .gameCard .priceLine{margin-top:8px;padding-top:8px;border-top:1px solid #1a212e;font-family:var(--font-display);
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .gameCard .priceOrig{font-size:11.5px;color:var(--sub);text-decoration:line-through;}
+  .gameCard .priceFinal{font-size:14px;font-weight:700;color:var(--gold);}
+  .gameCard .priceFree{font-size:12.5px;font-weight:700;color:var(--accent);}
+  .gameCard .discountBadge{background:var(--accent2);color:#fff;font-size:10.5px;font-weight:800;
+    padding:2px 6px;border-radius:4px;}
+  .gameCard .priceLoading{font-size:11px;color:var(--sub);}
+
+  .emptyMsg{text-align:center;color:var(--sub);font-size:13.5px;padding:50px 0;grid-column:1/-1;}
+  .verTag{font-size:10px;color:#3a4456;margin-bottom:18px;font-family:var(--font-display);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="appHeader">
+    <h1>🎮 게임 추천 갤러리</h1>
+    <button class="lockBtn" id="lockBtn" title="관리자 모드">🔒</button>
+  </div>
+  <div class="sub">사람들이 추천해준 스팀 게임들을 모아봤어요.</div>
+  <div class="verTag">버전: 2026-08-25 v2 (가격/할인율 표시 추가)</div>
+
+  <div class="adminCard" id="adminCard">
+    <h3>⚙️ 관리자 모드 — 게임 추가</h3>
+    <div class="formRow">
+      <div><input id="byInput" type="text" placeholder="추천한 사람 이름"></div>
+      <div><input id="urlInput" type="text" placeholder="스팀 게임 URL (store.steampowered.com/app/...)"></div>
+    </div>
+    <button class="btnPrimary" id="addBtn">추가</button>
+    <div class="err" id="addErr"></div>
+
+    <div style="margin-top:18px;">
+      <label>등록된 게임 (관리용 — 삭제 가능)</label>
+      <div id="adminList"></div>
+    </div>
+  </div>
+
+  <div class="gameGrid" id="gameGrid">
+    <div class="emptyMsg">불러오는 중...</div>
+  </div>
+</div>
+
+<div class="pinModalBg" id="pinModalBg">
+  <div class="pinModalBox">
+    <h3>🔒 관리자 PIN 입력</h3>
+    <input id="pinInput" type="password" placeholder="PIN 번호">
+    <div class="err" id="pinErr"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btnPrimary" id="pinSubmitBtn" style="flex:1;">확인</button>
+      <button class="btnGhost" id="pinCancelBtn">취소</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// =====================================================================
+// 관리자 PIN — 원하는 값으로 바꾸세요. (완전한 보안은 아니라는 점 참고!)
+const ADMIN_PIN = '1234';
+// =====================================================================
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClUo4m0Rlsd48K6R4UgsZdEpq3ojJVbBA",
+  authDomain: "steam-picks.firebaseapp.com",
+  databaseURL: "https://steam-picks-default-rtdb.firebaseio.com",
+  projectId: "steam-picks",
+  storageBucket: "steam-picks.firebasestorage.app",
+  messagingSenderId: "939715595783",
+  appId: "1:939715595783:web:1bbdf1aca6bfe5dc7d64a2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let IS_ADMIN = false;
+let GAMES = {};
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function extractAppId(url){
+  const m = url.match(/store\.steampowered\.com\/app\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+function extractTitleFromUrl(url, appid){
+  const m = url.match(/store\.steampowered\.com\/app\/\d+\/([^/?]+)/);
+  if(m) return decodeURIComponent(m[1]).replace(/_/g, ' ');
+  return appid ? ('앱 ' + appid) : url;
+}
+
+function steamHeaderImg(appid){
+  return 'https://cdn.akamai.steamstatic.com/steam/apps/' + appid + '/header.jpg';
+}
+
+// ---------- 스팀 가격 조회 ----------
+const PRICE_CACHE = {};
+
+async function fetchWithFallback(url){
+  const attempts = [
+    () => fetch(url),
+    () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
+    () => fetch('https://corsproxy.io/?url=' + encodeURIComponent(url)),
+    () => fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)),
+  ];
+  let lastErr = null;
+  for(const attempt of attempts){
+    try{
+      const res = await attempt();
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('모든 요청 방식 실패');
+}
+
+async function fetchSteamPrice(appid){
+  if(PRICE_CACHE[appid] !== undefined) return PRICE_CACHE[appid];
+  try{
+    const url = 'https://store.steampowered.com/api/appdetails?appids=' + appid + '&cc=kr&l=korean&filters=price_overview,is_free';
+    const json = await fetchWithFallback(url);
+    console.log('[steam_gallery] appid ' + appid + ' 원본 응답:', json);
+    const entry = json && json[appid];
+    if(!entry || !entry.success){
+      console.warn('[steam_gallery] appid ' + appid + ' success=false 또는 응답 형식 불일치');
+      PRICE_CACHE[appid] = null; return null;
+    }
+    if(entry.data && entry.data.is_free){ PRICE_CACHE[appid] = { free: true }; return PRICE_CACHE[appid]; }
+    const po = entry.data && entry.data.price_overview;
+    if(!po){
+      console.warn('[steam_gallery] appid ' + appid + ' price_overview 필드 없음 (무료/미출시/지역제한 게임일 수 있음)');
+      PRICE_CACHE[appid] = null; return null;
+    }
+    const result = {
+      initial: po.initial / 100,
+      final: po.final / 100,
+      discountPercent: po.discount_percent || 0,
+      currency: po.currency
+    };
+    PRICE_CACHE[appid] = result;
+    return result;
+  }catch(e){
+    console.error('[steam_gallery] appid ' + appid + ' 가격 조회 실패:', e);
+    PRICE_CACHE[appid] = null;
+    return null;
+  }
+}
+
+function formatKRW(n){
+  return '₩' + Math.round(n).toLocaleString();
+}
+
+function priceHtml(price){
+  if(!price) return '<span class="priceLoading">가격 정보 없음</span>';
+  if(price.free) return '<span class="priceFree">무료 플레이</span>';
+  if(price.discountPercent > 0){
+    return '<span class="discountBadge">-' + price.discountPercent + '%</span>' +
+      '<span class="priceOrig">' + formatKRW(price.initial) + '</span>' +
+      '<span class="priceFinal">' + formatKRW(price.final) + '</span>';
+  }
+  return '<span class="priceFinal">' + formatKRW(price.final) + '</span>';
+}
+
+// ---------- 갤러리 렌더링 (모두에게 보임) ----------
+function renderGallery(){
+  const grid = document.getElementById('gameGrid');
+  const entries = Object.entries(GAMES);
+  grid.innerHTML = '';
+
+  if(entries.length === 0){
+    grid.innerHTML = '<div class="emptyMsg">아직 등록된 게임이 없어요.</div>';
+    return;
+  }
+
+  entries
+    .sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0))
+    .forEach(([gid, g]) => {
+      const card = document.createElement('a');
+      card.className = 'gameCard';
+      card.href = g.url;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      card.innerHTML = `
+        <img class="thumb" src="${escapeHtml(g.img)}" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="info">
+          <div class="gTitle">${escapeHtml(g.title)}</div>
+          <div class="gBy"><b>${escapeHtml(g.by)}</b> 님 추천</div>
+          <div class="priceLine" id="price-${escapeHtml(gid)}"><span class="priceLoading">가격 불러오는 중...</span></div>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      fetchSteamPrice(g.appid).then(price => {
+        const el = document.getElementById('price-' + gid);
+        if(el) el.innerHTML = priceHtml(price);
+      });
+    });
+}
+
+// ---------- 관리자 목록 렌더링 (관리자만 보임) ----------
+function renderAdminList(){
+  const list = document.getElementById('adminList');
+  const entries = Object.entries(GAMES).sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0));
+  list.innerHTML = '';
+
+  if(entries.length === 0){
+    list.innerHTML = '<div style="font-size:12px;color:var(--sub);">등록된 게임이 없어요.</div>';
+    return;
+  }
+
+  entries.forEach(([gid, g]) => {
+    const el = document.createElement('div');
+    el.className = 'adminListItem';
+    el.innerHTML = `
+      <span class="aTitle">${escapeHtml(g.title)} — ${escapeHtml(g.by)}</span>
+      <button class="delBtn" data-id="${escapeHtml(gid)}" title="삭제">✕</button>
+    `;
+    list.appendChild(el);
+  });
+
+  list.querySelectorAll('.delBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      db.ref('games/' + btn.getAttribute('data-id')).remove();
+    });
+  });
+}
+
+// ---------- Firebase 실시간 구독 ----------
+db.ref('games').on('value', (snapshot) => {
+  GAMES = snapshot.val() || {};
+  renderGallery();
+  if(IS_ADMIN) renderAdminList();
+});
+
+// ---------- 게임 추가 ----------
+function addGame(){
+  const by = document.getElementById('byInput').value.trim();
+  const url = document.getElementById('urlInput').value.trim();
+  const errEl = document.getElementById('addErr');
+  errEl.style.display = 'none';
+
+  if(!by){ errEl.textContent = '추천한 사람 이름을 입력해주세요.'; errEl.style.display = 'block'; return; }
+  const appid = extractAppId(url);
+  if(!appid){ errEl.textContent = 'store.steampowered.com/app/숫자/... 형태의 스팀 URL을 넣어주세요.'; errEl.style.display = 'block'; return; }
+
+  const title = extractTitleFromUrl(url, appid);
+  const img = steamHeaderImg(appid);
+
+  const newRef = db.ref('games').push();
+  newRef.set({
+    by, url, appid, title, img,
+    addedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  document.getElementById('byInput').value = '';
+  document.getElementById('urlInput').value = '';
+}
+
+// ---------- 관리자 PIN 처리 ----------
+function openPinModal(){
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinErr').style.display = 'none';
+  document.getElementById('pinModalBg').classList.add('open');
+  document.getElementById('pinInput').focus();
+}
+
+function closePinModal(){
+  document.getElementById('pinModalBg').classList.remove('open');
+}
+
+function submitPin(){
+  const val = document.getElementById('pinInput').value;
+  if(val === ADMIN_PIN){
+    IS_ADMIN = true;
+    document.getElementById('adminCard').classList.add('show');
+    document.getElementById('lockBtn').textContent = '🔓';
+    document.getElementById('lockBtn').classList.add('unlocked');
+    renderAdminList();
+    closePinModal();
+  } else {
+    const err = document.getElementById('pinErr');
+    err.textContent = 'PIN이 틀렸어요.';
+    err.style.display = 'block';
+  }
+}
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  if(IS_ADMIN){
+    IS_ADMIN = false;
+    document.getElementById('adminCard').classList.remove('show');
+    document.getElementById('lockBtn').textContent = '🔒';
+    document.getElementById('lockBtn').classList.remove('unlocked');
+  } else {
+    openPinModal();
+  }
+});
+document.getElementById('pinSubmitBtn').addEventListener('click', submitPin);
+document.getElementById('pinInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') submitPin(); });
+document.getElementById('pinCancelBtn').addEventListener('click', closePinModal);
+document.getElementById('pinModalBg').addEventListener('click', (e) => { if(e.target.id === 'pinModalBg') closePinModal(); });
+
+document.getElementById('addBtn').addEventListener('click', addGame);
+document.getElementById('urlInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') addGame(); });
+</script>
+</body>
+</html>
