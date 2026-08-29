@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>게임 추천 갤러리</title>
 
 <style>
@@ -53,8 +54,6 @@
     margin:0 auto;
   }
 
-  /* 헤더 */
-
   .appHeader{
     display:flex;
     align-items:center;
@@ -101,7 +100,7 @@
   }
 
 
-  /* 관리자 */
+  /* 관리자 카드 */
 
   .adminCard{
     background:var(--panel);
@@ -294,7 +293,9 @@
     overflow:hidden;
     text-decoration:none;
     color:var(--text);
-    transition:transform .15s ease, border-color .15s ease;
+    transition:
+      transform .15s ease,
+      border-color .15s ease;
     display:block;
   }
 
@@ -333,12 +334,20 @@
     color:var(--accent);
   }
 
+
   .emptyMsg{
     text-align:center;
     color:var(--sub);
     font-size:13.5px;
     padding:50px 0;
     grid-column:1/-1;
+  }
+
+  .verTag{
+    font-size:10px;
+    color:#3a4456;
+    margin-bottom:18px;
+    font-family:var(--font-display);
   }
 
 </style>
@@ -350,9 +359,12 @@
 <div class="wrap">
 
   <div class="appHeader">
-    <h1>🎮 게임 추천 갤러리</h1>
 
 ```
+<h1>
+  🎮 게임 추천 갤러리
+</h1>
+
 <button
   class="lockBtn"
   id="lockBtn"
@@ -368,38 +380,61 @@
     사람들이 추천해준 스팀 게임들을 모아봤어요.
   </div>
 
-  <!-- 관리자 -->
+  <div class="verTag">
+    버전: 이미지 전용 v5
+  </div>
 
-  <div class="adminCard" id="adminCard">
+  <!-- 관리자 모드 -->
+
+  <div
+    class="adminCard"
+    id="adminCard"
+  >
 
 ```
-<h3>⚙️ 관리자 모드 — 게임 추가</h3>
+<h3>
+  ⚙️ 관리자 모드 — 게임 추가
+</h3>
+
 
 <div class="formRow">
 
   <div>
+
     <input
       id="byInput"
       type="text"
       placeholder="추천한 사람 이름"
     >
+
   </div>
 
+
   <div>
+
     <input
       id="urlInput"
       type="text"
       placeholder="스팀 게임 URL (store.steampowered.com/app/...)"
     >
+
   </div>
 
 </div>
 
-<button class="btnPrimary" id="addBtn">
+
+<button
+  class="btnPrimary"
+  id="addBtn"
+>
   추가
 </button>
 
-<div class="err" id="addErr"></div>
+
+<div
+  class="err"
+  id="addErr"
+></div>
 
 
 <div style="margin-top:18px;">
@@ -417,7 +452,10 @@
 
   <!-- 게임 목록 -->
 
-  <div class="gameGrid" id="gameGrid">
+  <div
+    class="gameGrid"
+    id="gameGrid"
+  >
 
 ```
 <div class="emptyMsg">
@@ -429,14 +467,20 @@
 
 </div>
 
-<!-- PIN 입력창 -->
+<!-- 관리자 PIN -->
 
-<div class="pinModalBg" id="pinModalBg">
+<div
+  class="pinModalBg"
+  id="pinModalBg"
+>
 
   <div class="pinModalBox">
 
 ```
-<h3>🔒 관리자 PIN 입력</h3>
+<h3>
+  🔒 관리자 PIN 입력
+</h3>
+
 
 <input
   id="pinInput"
@@ -444,10 +488,20 @@
   placeholder="PIN 번호"
 >
 
-<div class="err" id="pinErr"></div>
+
+<div
+  class="err"
+  id="pinErr"
+></div>
 
 
-<div style="display:flex;gap:8px;margin-top:14px;">
+<div
+  style="
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  "
+>
 
   <button
     class="btnPrimary"
@@ -456,6 +510,7 @@
   >
     확인
   </button>
+
 
   <button
     class="btnGhost"
@@ -514,9 +569,12 @@ const firebaseConfig = {
 };
 
 
+
 firebase.initializeApp(firebaseConfig);
 
+
 const db = firebase.database();
+
 
 
 let IS_ADMIN = false;
@@ -526,14 +584,16 @@ let GAMES = {};
 
 
 /* =====================================================
-   HTML 문자 보호
+   HTML 문자 안전 처리
 ===================================================== */
 
 function escapeHtml(s){
 
-  const d = document.createElement('div');
+  const d =
+    document.createElement('div');
 
-  d.textContent = s || '';
+  d.textContent =
+    s || '';
 
   return d.innerHTML;
 
@@ -542,16 +602,19 @@ function escapeHtml(s){
 
 
 /* =====================================================
-   Steam App ID 추출
+   Steam URL에서 AppID 추출
 ===================================================== */
 
 function extractAppId(url){
 
-  const m = url.match(
-    /store\.steampowered\.com\/app\/(\d+)/
-  );
+  const m =
+    url.match(
+      /store\.steampowered\.com\/app\/(\d+)/
+    );
 
-  return m ? m[1] : null;
+  return m
+    ? m[1]
+    : null;
 
 }
 
@@ -563,19 +626,26 @@ function extractAppId(url){
 
 function extractTitleFromUrl(url, appid){
 
-  const m = url.match(
-    /store\.steampowered\.com\/app\/\d+\/([^/?]+)/
-  );
+  const m =
+    url.match(
+      /store\.steampowered\.com\/app\/\d+\/([^/?]+)/
+    );
+
 
   if(m){
 
-    return decodeURIComponent(m[1])
-      .replace(/_/g, ' ');
+    return decodeURIComponent(
+      m[1]
+    ).replace(
+      /_/g,
+      ' '
+    );
 
   }
 
+
   return appid
-    ? ('앱 ' + appid)
+    ? '앱 ' + appid
     : url;
 
 }
@@ -583,13 +653,15 @@ function extractTitleFromUrl(url, appid){
 
 
 /* =====================================================
-   Steam 대표 이미지
+   Steam 기본 이미지 주소
+
+   shared.steamstatic 우선 사용
 ===================================================== */
 
 function steamHeaderImg(appid){
 
   return (
-    'https://cdn.akamai.steamstatic.com/steam/apps/'
+    'https://shared.steamstatic.com/store_item_assets/steam/apps/'
     + appid
     + '/header.jpg'
   );
@@ -601,8 +673,8 @@ function steamHeaderImg(appid){
 /* =====================================================
    게임 갤러리 렌더링
 
-   가격 기능 완전 제거
-   이미지 + 게임 제목 + 추천인만 표시
+   가격 기능 없음
+   이미지 + 제목 + 추천인만 표시
 ===================================================== */
 
 function renderGallery(){
@@ -644,13 +716,16 @@ function renderGallery(){
       document.createElement('a');
 
 
-    card.className = 'gameCard';
+    card.className =
+      'gameCard';
 
 
-    card.href = g.url;
+    card.href =
+      g.url;
 
 
-    card.target = '_blank';
+    card.target =
+      '_blank';
 
 
     card.rel =
@@ -659,26 +734,22 @@ function renderGallery(){
 
 
     /*
-      이미지 주소
+      Steam 이미지 폴백 순서
 
-      1. Firebase에 저장된 기존 이미지
-      2. Steam Akamai Header
-      3. Steam Cloudflare Header
-      4. Capsule 이미지
-      5. 세로 Library 이미지
+      1. 최신 shared.steamstatic
+      2. 기존 Firebase 저장 이미지
+      3. Akamai CDN
+      4. Cloudflare CDN
+      5. Capsule 이미지
     */
 
-    const fallbacks = [];
+    const fallbacks = [
 
+      'https://shared.steamstatic.com/store_item_assets/steam/apps/'
+      + g.appid
+      + '/header.jpg',
 
-    if(g.img){
-
-      fallbacks.push(g.img);
-
-    }
-
-
-    fallbacks.push(
+      g.img,
 
       'https://cdn.akamai.steamstatic.com/steam/apps/'
       + g.appid
@@ -690,13 +761,9 @@ function renderGallery(){
 
       'https://cdn.akamai.steamstatic.com/steam/apps/'
       + g.appid
-      + '/capsule_616x353.jpg',
+      + '/capsule_616x353.jpg'
 
-      'https://cdn.akamai.steamstatic.com/steam/apps/'
-      + g.appid
-      + '/library_600x900.jpg'
-
-    );
+    ].filter(Boolean);
 
 
 
@@ -706,8 +773,6 @@ function renderGallery(){
         class="thumb"
         src="${escapeHtml(fallbacks[0])}"
         alt="${escapeHtml(g.title)}"
-        data-fallbacks='${JSON.stringify(fallbacks)}'
-        data-fallback-idx="0"
         loading="lazy"
       >
 
@@ -727,46 +792,46 @@ function renderGallery(){
 
 
 
+    const img =
+      card.querySelector('.thumb');
+
+
+    let currentIndex = 0;
+
+
+
     /*
-      이미지가 안 나오면
-      다음 Steam 이미지 주소를 자동으로 시도
+      이미지 로드 실패 시
+      다음 Steam CDN 자동 시도
     */
 
-    const img =
-      card.querySelector('img');
-
-
     img.addEventListener(
+
       'error',
 
       function(){
 
-        const list =
-          JSON.parse(
-            this.dataset.fallbacks
-          );
+        currentIndex++;
 
 
-        const idx =
-          parseInt(
-            this.dataset.fallbackIdx,
-            10
-          )
-          \+ 1;
+        if(
+          currentIndex
+          <
+          fallbacks.length
+        ){
 
-
-
-        if(idx < list.length){
-
-          this.dataset.fallbackIdx = idx;
-
-          this.src = list[idx];
+          this.src =
+            fallbacks[currentIndex];
 
         }
 
+
         else{
 
-          this.style.display = 'none';
+          console.warn(
+            '이미지를 불러올 수 없습니다:',
+            g.appid
+          );
 
         }
 
@@ -790,7 +855,6 @@ function renderGallery(){
 ===================================================== */
 
 function renderAdminList(){
-
 
   const list =
     document.getElementById('adminList');
@@ -837,13 +901,10 @@ function renderAdminList(){
     el.innerHTML = `
 
       <span class="aTitle">
-
         ${escapeHtml(g.title)}
         —
         ${escapeHtml(g.by)}
-
       </span>
-
 
       <button
         class="delBtn"
@@ -893,19 +954,22 @@ function renderAdminList(){
 
 
 /* =====================================================
-   Firebase 실시간 데이터 불러오기
+   Firebase 실시간 데이터 구독
 ===================================================== */
 
 db
   .ref('games')
   .on(
+
     'value',
 
     (snapshot) => {
 
 
       GAMES =
-        snapshot.val() || {};
+        snapshot.val()
+        ||
+        {};
 
 
       renderGallery();
@@ -946,7 +1010,8 @@ function addGame(){
 
 
   const errEl =
-    document.getElementById('addErr');
+    document
+      .getElementById('addErr');
 
 
   errEl.style.display =
@@ -959,8 +1024,10 @@ function addGame(){
     errEl.textContent =
       '추천한 사람 이름을 입력해주세요.';
 
+
     errEl.style.display =
       'block';
+
 
     return;
 
@@ -978,8 +1045,10 @@ function addGame(){
     errEl.textContent =
       'store.steampowered.com/app/숫자/... 형태의 스팀 URL을 넣어주세요.';
 
+
     errEl.style.display =
       'block';
+
 
     return;
 
@@ -994,27 +1063,30 @@ function addGame(){
     );
 
 
+
   const img =
     steamHeaderImg(appid);
 
 
 
   const newRef =
-    db.ref('games').push();
+    db
+      .ref('games')
+      .push();
 
 
 
   newRef.set({
 
-    by: by,
+    by,
 
-    url: url,
+    url,
 
-    appid: appid,
+    appid,
 
-    title: title,
+    title,
 
-    img: img,
+    img,
 
     addedAt:
       firebase.database
@@ -1030,6 +1102,7 @@ function addGame(){
     .value = '';
 
 
+
   document
     .getElementById('urlInput')
     .value = '';
@@ -1039,11 +1112,10 @@ function addGame(){
 
 
 /* =====================================================
-   관리자 PIN
+   관리자 PIN 모달 열기
 ===================================================== */
 
 function openPinModal(){
-
 
   document
     .getElementById('pinInput')
@@ -1069,6 +1141,10 @@ function openPinModal(){
 
 
 
+/* =====================================================
+   관리자 PIN 모달 닫기
+===================================================== */
+
 function closePinModal(){
 
   document
@@ -1080,8 +1156,11 @@ function closePinModal(){
 
 
 
-function submitPin(){
+/* =====================================================
+   관리자 PIN 확인
+===================================================== */
 
+function submitPin(){
 
   const val =
     document
@@ -1090,10 +1169,15 @@ function submitPin(){
 
 
 
-  if(val === ADMIN_PIN){
+  if(
+    val
+    ===
+    ADMIN_PIN
+  ){
 
 
-    IS_ADMIN = true;
+    IS_ADMIN =
+      true;
 
 
     document
@@ -1104,7 +1188,8 @@ function submitPin(){
 
     document
       .getElementById('lockBtn')
-      .textContent = '🔓';
+      .textContent =
+      '🔓';
 
 
     document
@@ -1160,7 +1245,8 @@ document
       if(IS_ADMIN){
 
 
-        IS_ADMIN = false;
+        IS_ADMIN =
+          false;
 
 
         document
@@ -1171,7 +1257,8 @@ document
 
         document
           .getElementById('lockBtn')
-          .textContent = '🔒';
+          .textContent =
+          '🔒';
 
 
         document
@@ -1215,7 +1302,11 @@ document
 
     (e) => {
 
-      if(e.key === 'Enter'){
+      if(
+        e.key
+        ===
+        'Enter'
+      ){
 
         submitPin();
 
@@ -1277,7 +1368,11 @@ document
 
     (e) => {
 
-      if(e.key === 'Enter'){
+      if(
+        e.key
+        ===
+        'Enter'
+      ){
 
         addGame();
 
