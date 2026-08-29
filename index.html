@@ -53,6 +53,8 @@
   .adminListItem:last-child{border-bottom:none;}
   .adminListItem .aTitle{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .adminListItem .delBtn{background:none;color:var(--sub);font-size:14px;padding:2px 6px;}
+  .adminListItem .refreshImgBtn{background:none;color:var(--sub);font-size:13px;padding:2px 6px;}
+  .adminListItem .refreshImgBtn:hover{color:var(--accent);}
   .adminListItem .delBtn:hover{color:var(--accent2);}
 
   .pinModalBg{display:none;position:fixed;inset:0;background:rgba(4,6,10,.8);z-index:9999;
@@ -83,7 +85,7 @@
     <button class="lockBtn" id="lockBtn" title="관리자 모드">🔒</button>
   </div>
   <div class="sub">사람들이 추천해준 스팀 게임들을 모아봤어요.</div>
-  <div class="verTag">버전: 2026-08-25 v5 (가격 기능 제거, 이미지만 안정적으로)</div>
+  <div class="verTag">버전: 2026-08-25 v6 (게임 추가 시 1회만 실제 이미지 조회 → 방문자는 API 호출 없음)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -162,6 +164,29 @@ function steamHeaderImg(appid){
   return 'https://cdn.akamai.steamstatic.com/steam/apps/' + appid + '/header.jpg';
 }
 
+// 관리자가 게임을 "추가"할 때 딱 한 번만 호출 — 실제 header_image(해시 포함) 주소를 얻어서 저장해둠.
+// 방문자들은 이 저장된 주소를 그대로 쓰기만 하므로, API 호출/프록시 문제와 완전히 무관해짐.
+async function fetchRealHeaderImage(appid){
+  const attempts = [
+    (url) => fetch(url),
+    (url) => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
+    (url) => fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)),
+  ];
+  const targetUrl = 'https://store.steampowered.com/api/appdetails?appids=' + appid + '&cc=kr&l=korean&filters=basic';
+  for(const attempt of attempts){
+    try{
+      const res = await attempt(targetUrl);
+      if(!res.ok) continue;
+      const json = await res.json();
+      const entry = json && json[appid];
+      if(entry && entry.success && entry.data && entry.data.header_image){
+        return entry.data.header_image;
+      }
+    }catch(e){ /* 다음 방법 시도 */ }
+  }
+  return null; // 다 실패하면 null — 호출부에서 레거시 주소로 대체
+}
+
 // ---------- 갤러리 렌더링 (모두에게 보임) ----------
 function renderGallery(){
   const grid = document.getElementById('gameGrid');
@@ -180,13 +205,14 @@ function renderGallery(){
     card.href = g.url;
     card.target = '_blank';
     card.rel = 'noopener noreferrer';
-    // 이미지 폴백 체인: header.jpg 실패 시 다른 스팀 이미지 규격들을 순서대로 시도
+    // 저장해둔 실제 이미지 주소(g.img, 해시 포함)를 최우선으로, 실패하면 레거시 주소들을 순서대로 시도
     const fallbacks = [
+      g.img,
       'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/header.jpg',
       'https://cdn.cloudflare.steamstatic.com/steam/apps/' + g.appid + '/header.jpg',
       'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/capsule_616x353.jpg',
       'https://cdn.akamai.steamstatic.com/steam/apps/' + g.appid + '/library_600x900.jpg'
-    ];
+    ].filter(Boolean);
     card.innerHTML = `
       <img class="thumb" src="${escapeHtml(fallbacks[0])}" alt=""
         data-fallbacks='${JSON.stringify(fallbacks)}' data-fallback-idx="0" loading="lazy">
@@ -226,9 +252,25 @@ function renderAdminList(){
     el.className = 'adminListItem';
     el.innerHTML = `
       <span class="aTitle">${escapeHtml(g.title)} — ${escapeHtml(g.by)}</span>
+      <button class="refreshImgBtn" data-id="${escapeHtml(gid)}" data-appid="${escapeHtml(g.appid)}" title="이미지 새로고침">🔄</button>
       <button class="delBtn" data-id="${escapeHtml(gid)}" title="삭제">✕</button>
     `;
     list.appendChild(el);
+  });
+
+  list.querySelectorAll('.refreshImgBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const gid = btn.getAttribute('data-id');
+      const appid = btn.getAttribute('data-appid');
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      const realImg = await fetchRealHeaderImage(appid);
+      if(realImg){
+        db.ref('games/' + gid + '/img').set(realImg);
+      }
+      btn.disabled = false;
+      btn.textContent = '🔄';
+    });
   });
 
   list.querySelectorAll('.delBtn').forEach(btn => {
@@ -246,7 +288,7 @@ db.ref('games').on('value', (snapshot) => {
 });
 
 // ---------- 게임 추가 ----------
-function addGame(){
+async function addGame(){
   const by = document.getElementById('byInput').value.trim();
   const url = document.getElementById('urlInput').value.trim();
   const errEl = document.getElementById('addErr');
@@ -257,7 +299,12 @@ function addGame(){
   if(!appid){ errEl.textContent = 'store.steampowered.com/app/숫자/... 형태의 스팀 URL을 넣어주세요.'; errEl.style.display = 'block'; return; }
 
   const title = extractTitleFromUrl(url, appid);
-  const img = steamHeaderImg(appid);
+  const addBtn = document.getElementById('addBtn');
+  addBtn.disabled = true;
+  addBtn.textContent = '이미지 확인 중...';
+
+  const realImg = await fetchRealHeaderImage(appid);
+  const img = realImg || steamHeaderImg(appid); // 실패하면 레거시 주소로 대체
 
   const newRef = db.ref('games').push();
   newRef.set({
@@ -267,6 +314,14 @@ function addGame(){
 
   document.getElementById('byInput').value = '';
   document.getElementById('urlInput').value = '';
+  addBtn.disabled = false;
+  addBtn.textContent = '추가';
+
+  if(!realImg){
+    errEl.textContent = '⚠️ 이미지 주소를 못 가져와서 예전 방식 주소로 저장했어요. 이미지가 안 뜨면 다시 추가해보세요.';
+    errEl.style.display = 'block';
+    errEl.style.color = 'var(--sub)';
+  }
 }
 
 // ---------- 관리자 PIN 처리 ----------
