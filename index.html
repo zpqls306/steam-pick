@@ -85,7 +85,7 @@
     <button class="lockBtn" id="lockBtn" title="관리자 모드">🔒</button>
   </div>
   <div class="sub">사람들이 추천해준 스팀 게임들을 모아봤어요.</div>
-  <div class="verTag">버전: 2026-08-25 v6 (게임 추가 시 1회만 실제 이미지 조회 → 방문자는 API 호출 없음)</div>
+  <div class="verTag">버전: 2026-08-25 v7 (프록시 4개 추가 + 실패시 자동 재시도)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -171,20 +171,39 @@ async function fetchRealHeaderImage(appid){
     (url) => fetch(url),
     (url) => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
     (url) => fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)),
+    (url) => fetch('https://cors.x2u.in/' + url),
+    (url) => fetch('https://corsfix.com/' + url),
+    (url) => fetch('https://thingproxy.freeboard.io/fetch/' + url),
+    (url) => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url)),
   ];
   const targetUrl = 'https://store.steampowered.com/api/appdetails?appids=' + appid + '&cc=kr&l=korean&filters=basic';
-  for(const attempt of attempts){
-    try{
-      const res = await attempt(targetUrl);
-      if(!res.ok) continue;
-      const json = await res.json();
-      const entry = json && json[appid];
-      if(entry && entry.success && entry.data && entry.data.header_image){
-        return entry.data.header_image;
-      }
-    }catch(e){ /* 다음 방법 시도 */ }
+
+  async function tryOnce(){
+    for(const attempt of attempts){
+      try{
+        const res = await attempt(targetUrl);
+        if(!res.ok) continue;
+        let json = await res.json();
+        // allorigins의 /get 방식은 실제 응답이 .contents 안에 문자열로 들어있음
+        if(json && typeof json.contents === 'string'){
+          json = JSON.parse(json.contents);
+        }
+        const entry = json && json[appid];
+        if(entry && entry.success && entry.data && entry.data.header_image){
+          return entry.data.header_image;
+        }
+      }catch(e){ /* 다음 방법 시도 */ }
+    }
+    return null;
   }
-  return null; // 다 실패하면 null — 호출부에서 레거시 주소로 대체
+
+  // 한 바퀴 다 실패하면, 짧게 쉬었다가 한 번 더 전체를 재시도 (프록시 일시 과부하 대응)
+  let result = await tryOnce();
+  if(!result){
+    await new Promise(resolve => setTimeout(resolve, 800));
+    result = await tryOnce();
+  }
+  return result; // 그래도 실패하면 null — 호출부에서 레거시 주소로 대체
 }
 
 // ---------- 갤러리 렌더링 (모두에게 보임) ----------
