@@ -91,7 +91,7 @@
     <button class="lockBtn" id="lockBtn" title="관리자 모드">🔒</button>
   </div>
   <div class="sub">사람들이 추천해준 스팀 게임들을 모아봤어요.</div>
-  <div class="verTag">버전: 2026-08-25 v3 (이미지 폴백, 가격 요청 순차 처리)</div>
+  <div class="verTag">버전: 2026-08-25 v4 (죽은 프록시 corsproxy.io 제거, 대체 프록시 추가)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -177,8 +177,9 @@ async function fetchWithFallback(url){
   const attempts = [
     () => fetch(url),
     () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
-    () => fetch('https://corsproxy.io/?url=' + encodeURIComponent(url)),
     () => fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)),
+    () => fetch('https://cors.x2u.in/' + url),
+    () => fetch('https://corsfix.com/' + url),
   ];
   let lastErr = null;
   for(const attempt of attempts){
