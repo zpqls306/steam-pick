@@ -15,7 +15,7 @@
     --sub:#7d8ba0; --accent:#66c0f4; --accent2:#ff2d6f; --gold:#ffd60a;
     --font-display:'Rajdhani','Pretendard','Pretendard Fallback',sans-serif;
     --font-body:'Pretendard','Pretendard Fallback',system-ui,-apple-system,sans-serif;
-    --bg-image: none;
+    --bg-image: url("bg.gif");
   }
   *{box-sizing:border-box;}
   body{
@@ -108,14 +108,19 @@
   .gameCard .gTitle{font-weight:700;font-size:13.5px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;
     white-space:nowrap;}
   .gameCard .gBy{font-size:11.5px;color:var(--sub);}
-  .gameCard .gBy b{color:var(--accent);}
+  .gameCard .recBadge{position:absolute;top:8px;left:8px;background:rgba(4,6,10,.75);color:var(--accent);
+    font-weight:700;font-size:12.5px;padding:5px 10px;border-radius:6px;z-index:2;
+    backdrop-filter:blur(2px);border:1px solid rgba(102,192,244,.4);}
   .gameCard .genreTags{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;}
   .gameCard .genreTag{font-size:9.5px;background:var(--panel2);border:1px solid var(--border);color:var(--sub);
     padding:2px 6px;border-radius:4px;font-family:var(--font-display);}
+  .gameCard .gBy b{color:var(--accent);}
   .gameCard .priceLine{margin-top:8px;padding-top:8px;border-top:1px solid #1a212e;font-family:var(--font-display);
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .gameCard .priceOrig{font-size:11.5px;color:var(--sub);text-decoration:line-through;}
   .gameCard .priceFinal{font-size:14px;font-weight:700;color:var(--gold);}
+  .gameCard .priceFree{font-size:13px;font-weight:700;color:var(--accent);}
+  .gameCard .priceEnd{font-size:10.5px;color:var(--accent2);}
   .gameCard .discountBadge{background:var(--accent2);color:#fff;font-size:10.5px;font-weight:800;
     padding:2px 6px;border-radius:4px;}
 
@@ -137,7 +142,7 @@
       <span class="lockText">관리자 모드</span>
     </button>
   </div>
-  <div class="verTag">버전: 2026-08-25 v8 (검색/장르/배경/가격수동입력/플레이완료 분류 추가)</div>
+  <div class="verTag">버전: 2026-08-25 v9 (무료게임/장르 복구/배경GIF고정/할인종료일/추천뱃지 개선)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -146,31 +151,30 @@
       <div><input id="urlInput" type="text" placeholder="스팀 게임 URL (store.steampowered.com/app/...)"></div>
     </div>
 
-    <label>가격 (₩) — 할인 없을 때</label>
-    <div class="formRow">
-      <div><input id="priceBaseInput" type="number" placeholder="예: 29000"></div>
+    <div class="checkRow">
+      <input type="checkbox" id="freeCheck">
+      <label style="margin:0;" for="freeCheck">무료 게임이에요</label>
     </div>
 
-    <div class="checkRow">
-      <input type="checkbox" id="onSaleCheck">
-      <label style="margin:0;" for="onSaleCheck">할인 중이에요</label>
-    </div>
-    <div class="formRow" id="saleFields" style="display:none;">
-      <div><input id="priceOrigInput" type="number" placeholder="원가 (예: 29000)"></div>
-      <div><input id="priceNowInput" type="number" placeholder="할인가 (예: 14500)"></div>
+    <div id="priceSection">
+      <label>가격 (₩) — 할인 없을 때</label>
+      <div class="formRow">
+        <div><input id="priceBaseInput" type="number" placeholder="예: 29000"></div>
+      </div>
+
+      <div class="checkRow">
+        <input type="checkbox" id="onSaleCheck">
+        <label style="margin:0;" for="onSaleCheck">할인 중이에요</label>
+      </div>
+      <div class="formRow" id="saleFields" style="display:none;">
+        <div><input id="priceOrigInput" type="number" placeholder="원가 (예: 29000)"></div>
+        <div><input id="priceNowInput" type="number" placeholder="할인가 (예: 14500)"></div>
+        <div><input id="priceEndInput" type="text" placeholder="할인 종료일 (예: 9/8일까지)"></div>
+      </div>
     </div>
 
     <button class="btnPrimary" id="addBtn">추가</button>
     <div class="err" id="addErr"></div>
-
-    <h4>🖼 배경화면 (GIF/이미지 URL)</h4>
-    <div class="formRow">
-      <div><input id="bgUrlInput" type="url" placeholder="배경으로 쓸 이미지/GIF 주소 (호스팅한 URL 붙여넣기)"></div>
-      <button class="btnGhost" id="bgSaveBtn">적용</button>
-    </div>
-    <div style="font-size:11px;color:var(--sub);margin-top:-4px;margin-bottom:4px;">
-      * GIF 파일 자체를 여기 업로드하는 기능은 없어요. GitHub 저장소나 이미지 호스팅에 파일을 올린 뒤, 그 주소(URL)를 붙여넣어주세요.
-    </div>
 
     <h4>📋 등록된 게임 관리</h4>
     <div class="adminColumns">
@@ -321,21 +325,6 @@ function extractGenres(data){
   return '';
 }
 
-// ---------- 배경화면 ----------
-function applyBgFromConfig(cfg){
-  const url = cfg && cfg.bgUrl;
-  document.documentElement.style.setProperty('--bg-image', url ? `url("${url}")` : 'none');
-}
-
-db.ref('config').on('value', (snapshot) => {
-  applyBgFromConfig(snapshot.val() || {});
-});
-
-document.getElementById('bgSaveBtn').addEventListener('click', () => {
-  const url = document.getElementById('bgUrlInput').value.trim();
-  db.ref('config/bgUrl').set(url);
-});
-
 // ---------- 가격 표시용 헬퍼 ----------
 function formatKRW(n){
   return '₩' + Math.round(n).toLocaleString();
@@ -343,12 +332,16 @@ function formatKRW(n){
 
 function priceHtml(price){
   if(!price) return '';
+  if(price.free){
+    return '<div class="priceLine"><span class="priceFree">무료 플레이</span></div>';
+  }
   if(price.onSale && price.original && price.current){
     const pct = Math.round((1 - price.current / price.original) * 100);
     return '<div class="priceLine">' +
       '<span class="discountBadge">-' + pct + '%</span>' +
       '<span class="priceOrig">' + formatKRW(price.original) + '</span>' +
       '<span class="priceFinal">' + formatKRW(price.current) + '</span>' +
+      (price.endDate ? '<span class="priceEnd">' + escapeHtml(price.endDate) + '</span>' : '') +
       '</div>';
   }
   if(price.base){
@@ -357,7 +350,7 @@ function priceHtml(price){
   return '';
 }
 
-// ---------- 검색/필터 상태 ----------
+// ---------- 검색 상태 ----------
 let SEARCH_QUERY = '';
 let GENRE_FILTER = '';
 
@@ -414,11 +407,11 @@ function renderGallery(){
 
     card.innerHTML = `
       ${g.played ? '<span class="playedBadge">완료</span>' : ''}
+      <div class="recBadge">👤 ${escapeHtml(g.by)} 님 추천</div>
       <img class="thumb" src="${escapeHtml(fallbacks[0])}" alt=""
         data-fallbacks='${JSON.stringify(fallbacks)}' data-fallback-idx="0" loading="lazy">
       <div class="info">
         <div class="gTitle">${escapeHtml(g.title)}</div>
-        <div class="gBy"><b>${escapeHtml(g.by)}</b> 님 추천</div>
         ${genreTags ? '<div class="genreTags">' + genreTags + '</div>' : ''}
         ${priceHtml(g.price)}
       </div>
@@ -459,7 +452,7 @@ function renderAdminList(){
       <span class="aTitle">${escapeHtml(g.title)}</span>
       <button class="moveBtn" data-id="${escapeHtml(gid)}" title="${isPlayed ? '안 한 게임으로 되돌리기' : '플레이 완료로 이동'}">${isPlayed ? '◀' : '▶'}</button>
       <button class="priceBtn" data-id="${escapeHtml(gid)}" title="가격 수정">💰</button>
-      <button class="refreshImgBtn" data-id="${escapeHtml(gid)}" data-appid="${escapeHtml(g.appid)}" title="이미지/장르 새로고침">🔄</button>
+      <button class="refreshImgBtn" data-id="${escapeHtml(gid)}" data-appid="${escapeHtml(g.appid)}" title="이미지 새로고침">🔄</button>
       <button class="delBtn" data-id="${escapeHtml(gid)}" title="삭제">✕</button>
     `;
     return el;
@@ -526,6 +519,9 @@ db.ref('games').on('value', (snapshot) => {
 document.getElementById('onSaleCheck').addEventListener('change', (e) => {
   document.getElementById('saleFields').style.display = e.target.checked ? 'flex' : 'none';
 });
+document.getElementById('freeCheck').addEventListener('change', (e) => {
+  document.getElementById('priceSection').style.display = e.target.checked ? 'none' : 'block';
+});
 
 async function addGame(){
   const by = document.getElementById('byInput').value.trim();
@@ -538,10 +534,21 @@ async function addGame(){
   if(!appid){ errEl.textContent = 'store.steampowered.com/app/숫자/... 형태의 스팀 URL을 넣어주세요.'; errEl.style.display = 'block'; return; }
 
   const title = extractTitleFromUrl(url, appid);
+  const isFree = document.getElementById('freeCheck').checked;
   const onSale = document.getElementById('onSaleCheck').checked;
-  const price = onSale
-    ? { onSale: true, original: Number(document.getElementById('priceOrigInput').value) || 0, current: Number(document.getElementById('priceNowInput').value) || 0 }
-    : { onSale: false, base: Number(document.getElementById('priceBaseInput').value) || 0 };
+  let price;
+  if(isFree){
+    price = { free: true };
+  } else if(onSale){
+    price = {
+      onSale: true,
+      original: Number(document.getElementById('priceOrigInput').value) || 0,
+      current: Number(document.getElementById('priceNowInput').value) || 0,
+      endDate: document.getElementById('priceEndInput').value.trim()
+    };
+  } else {
+    price = { onSale: false, base: Number(document.getElementById('priceBaseInput').value) || 0 };
+  }
 
   const addBtn = document.getElementById('addBtn');
   addBtn.disabled = true;
@@ -562,13 +569,16 @@ async function addGame(){
   document.getElementById('priceBaseInput').value = '';
   document.getElementById('priceOrigInput').value = '';
   document.getElementById('priceNowInput').value = '';
+  document.getElementById('priceEndInput').value = '';
+  document.getElementById('freeCheck').checked = false;
+  document.getElementById('priceSection').style.display = 'block';
   document.getElementById('onSaleCheck').checked = false;
   document.getElementById('saleFields').style.display = 'none';
   addBtn.disabled = false;
   addBtn.textContent = '추가';
 
   if(!data){
-    errEl.textContent = '⚠️ 이미지/장르 정보를 못 가져와서 예전 방식 주소로 저장했어요. 관리 목록에서 🔄로 다시 시도해보세요.';
+    errEl.textContent = '⚠️ 이미지 정보를 못 가져와서 예전 방식 주소로 저장했어요. 관리 목록에서 🔄로 다시 시도해보세요.';
     errEl.style.display = 'block';
     errEl.style.color = 'var(--sub)';
   }
