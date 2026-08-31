@@ -44,7 +44,6 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
 .sectionTitle{font-family:var(--font-display);font-size:12px;color:var(--gold);letter-spacing:.5px;margin:16px 0 9px;padding-top:14px;border-top:1px solid #1a212e}
 .filterRow{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}.filterRow input{flex:2;min-width:160px}.filterRow select{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:13px}
 .gameGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
-.viewTabs{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:12px}.viewTab{background:transparent;color:var(--sub);border:1px solid transparent;padding:8px 12px}.viewTab.active{background:var(--panel2);color:var(--accent);border-color:var(--border)}.viewPanel[hidden]{display:none}.steamBadges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.steamBadge{font-family:var(--font-display);font-size:10.5px;font-weight:700;border-radius:4px;padding:3px 6px;background:#1b2533;border:1px solid #2b3b50;color:#b9dfff}.steamBadge.meta{color:var(--gold);border-color:rgba(255,214,10,.36);background:rgba(255,214,10,.08)}.eventLink{display:block;background:linear-gradient(120deg,#1d3045,#17202d);border:1px solid #2a4662;color:var(--text);padding:14px;border-radius:8px;text-decoration:none;margin:0 0 16px;font-size:13px}.eventLink strong{color:var(--accent);display:block;margin-bottom:3px}.saleStatus{font-size:12px;color:var(--sub);margin:-5px 0 14px}.saleCard .recBadge{color:#fff;background:rgba(255,45,111,.86);border-color:rgba(255,255,255,.25)}
 .gameCard{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;text-decoration:none;color:var(--text);display:block;isolation:isolate;transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s ease}
 /* 테두리에만 딱 붙는 그라데이션 링 — 회전 없이 페이드인만 */
 .gameCard::after{content:'';position:absolute;inset:0;border-radius:10px;padding:2px;pointer-events:none;z-index:1;opacity:0;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--gold));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;transition:opacity .2s ease}
@@ -80,9 +79,8 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
     </div>
     <button class="btnPrimary" id="addBtn">추가</button><div class="err" id="addErr"></div>
   </div>
-<div class="viewTabs" role="tablist"><button class="viewTab active" data-view="recommendations" type="button">추천 게임</button><button class="viewTab" data-view="deals" type="button">할인 · 이벤트</button></div>
-<section class="viewPanel" id="recommendationsPanel"><div class="filterRow"><input id="searchInput" type="text" placeholder="🔍 게임 이름 검색..."><select id="genreFilter"><option value="">전체 장르</option></select></div><div class="gameGrid" id="gameGrid"><div class="emptyMsg">불러오는 중...</div></div></section>
-<section class="viewPanel" id="dealsPanel" hidden><a class="eventLink" href="https://store.steampowered.com/sale/" target="_blank" rel="noopener noreferrer"><strong>Steam 이벤트 · 세일 허브 열기 ↗</strong>진행 중인 계절 할인, 데모 행사, 무료 주말 등의 공식 이벤트를 확인하세요.</a><div class="saleStatus" id="saleStatus">Steam 할인 게임을 불러오는 중...</div><div class="gameGrid" id="dealsGrid"></div></section>
+<div class="filterRow"><input id="searchInput" type="text" placeholder="🔍 게임 이름 검색..."><select id="genreFilter"><option value="">전체 장르</option></select></div>
+  <div class="gameGrid" id="gameGrid"><div class="emptyMsg">불러오는 중...</div></div>
 </div>
 <button id="scrollTopBtn" title="맨 위로">↑</button>
 
@@ -226,9 +224,6 @@ async function collectAll(tasks){
   const r=await Promise.allSettled(tasks.map(fn=>fn()));
   return r.filter(x=>x.status==='fulfilled'&&x.value).map(x=>x.value)
 }
-async function fetchReviewSummary(appid){const api='https://store.steampowered.com/appreviews/'+appid+'?json=1&language=koreana&purchase_type=all';const results=await collectAll([()=>fetchJSON(api,6500),()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api),8000),()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api),8000)]);return results.map(x=>x?.query_summary?.review_score_desc).find(Boolean)||''}
-function badgeFields(data){const score=data?.metacritic;return {metacritic:score!==null&&score!==undefined&&Number.isFinite(Number(score))?Number(score):null,reviewSummary:data?.reviewSummary||''}}
-function steamBadgesHtml(game){const badges=[];if(game.metacritic!==null&&game.metacritic!==undefined&&Number.isFinite(Number(game.metacritic)))badges.push('<span class="steamBadge meta">Metacritic '+escapeHtml(game.metacritic)+'</span>');if(game.reviewSummary)badges.push('<span class="steamBadge">👍 '+escapeHtml(game.reviewSummary)+'</span>');return badges.length?'<div class="steamBadges">'+badges.join('')+'</div>':''}
 
 /*
  장르 과다 등록 수정:
@@ -274,7 +269,7 @@ async function fetchRealDetails(appid){
     const name=apiResults.map(x=>x&&x.name).find(Boolean)||pageResults.map(x=>x&&x.name).find(Boolean)||spyResults.map(x=>x&&x.name).find(Boolean)||'';
     const image=apiResults.map(x=>x&&x.header_image).find(Boolean)||pageResults.map(x=>x&&x.header_image).find(Boolean)||'';
 
-    if(image&&genres.length)return {name,header_image:image,genres:genres.map(description=>({description})),metacritic:apiResults.map(x=>x?.metacritic?.score).find(x=>Number.isFinite(Number(x)))||null,reviewSummary:await fetchReviewSummary(appid)};
+    if(image&&genres.length)return {name,header_image:image,genres:genres.map(description=>({description}))};
     if(round===0)await new Promise(r=>setTimeout(r,700));
   }
   const official=limitGenres(apiResults.flatMap(x=>Array.isArray(x&&x.genres)?x.genres:[]));
@@ -283,7 +278,7 @@ async function fetchRealDetails(appid){
   const genres=official.length?official:(pageGenres.length?pageGenres:spyGenres);
   const name=apiResults.map(x=>x&&x.name).find(Boolean)||pageResults.map(x=>x&&x.name).find(Boolean)||spyResults.map(x=>x&&x.name).find(Boolean)||'';
   const image=apiResults.map(x=>x&&x.header_image).find(Boolean)||pageResults.map(x=>x&&x.header_image).find(Boolean)||steamHeaderImg(appid);
-  return {name,header_image:image,genres:genres.map(description=>({description})),metacritic:apiResults.map(x=>x?.metacritic?.score).find(x=>Number.isFinite(Number(x)))||null,reviewSummary:await fetchReviewSummary(appid)}
+  return {name,header_image:image,genres:genres.map(description=>({description}))}
 }
 function extractGenres(data){return limitGenres(Array.isArray(data&&data.genres)?data.genres:[]).join(', ')}
 function formatKRW(n){return '₩'+Math.round(n).toLocaleString()}
@@ -338,7 +333,6 @@ function renderGallery(){
     <div class="info">
       <div class="gTitle">${escapeHtml(g.title)}</div>
       ${tags?'<div class="genreTags">'+tags+'</div>':''}
-      ${steamBadgesHtml(g)}
       ${priceHtml(g.price)}
     </div>`;
 
@@ -353,12 +347,6 @@ function renderGallery(){
  });
 }
 db.ref('games').on('value',s=>{GAMES=s.val()||{};updateGenreOptions();renderGallery();});
-let DEALS_LOADED=false;
-function storePrice(item,key){const formatted=item[key+'_formatted'];if(formatted)return formatted;const n=Number(item[key]);return Number.isFinite(n)?'₩'+Math.round(n).toLocaleString('ko-KR'):''}
-function renderDeals(items){const grid=document.getElementById('dealsGrid');grid.innerHTML='';if(!items.length){grid.innerHTML='<div class="emptyMsg">할인 목록을 가져오지 못했습니다. 위 Steam 이벤트 허브에서 직접 확인해 주세요.</div>';return}items.slice(0,24).forEach(item=>{const card=document.createElement('a');card.className='gameCard saleCard';card.href='https://store.steampowered.com/app/'+item.id+'/?cc=kr&l=korean';card.target='_blank';card.rel='noopener noreferrer';const discount=Number(item.discount_percent)||0,image=item.header_image||steamHeaderImg(item.id);card.innerHTML='<div class="recBadge">할인 '+discount+'%</div><img class="thumb" src="'+escapeHtml(image)+'" alt="" loading="lazy"><div class="info"><div class="gTitle">'+escapeHtml(item.name||'Steam 게임')+'</div><div class="priceLine"><span class="discountBadge">-'+discount+'%</span><span class="priceOrig">'+escapeHtml(storePrice(item,'original_price'))+'</span><span class="priceFinal">'+escapeHtml(storePrice(item,'final_price'))+'</span></div></div>';grid.appendChild(card)})}
-function featuredSpecials(data){if(Array.isArray(data?.specials?.items))return data.specials.items;const category=Object.values(data||{}).find(value=>Array.isArray(value?.items)&&(value.id==='specials'||/special/i.test(value.name||'')));return category?.items||[]}
-async function loadDeals(){if(DEALS_LOADED)return;const status=document.getElementById('saleStatus'),api='https://store.steampowered.com/api/featuredcategories?cc=kr&l=korean';try{const results=await collectAll([()=>fetchJSON(api,9000),()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api),10000),()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api),10000),()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api),12000),()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api),10000)]);const data=results.find(x=>featuredSpecials(x).length),items=featuredSpecials(data).filter(x=>Number(x.discount_percent)>0);renderDeals(items);status.textContent=items.length?'Steam 현재 할인 게임 · '+items.length+'개 불러옴':'할인 게임 정보를 찾지 못했습니다.';DEALS_LOADED=true}catch(error){renderDeals([]);status.textContent='할인 게임 정보를 불러오지 못했습니다.'}}
-document.querySelectorAll('.viewTab').forEach(button=>button.addEventListener('click',()=>{const deals=button.dataset.view==='deals';document.querySelectorAll('.viewTab').forEach(x=>x.classList.toggle('active',x===button));document.getElementById('recommendationsPanel').hidden=deals;document.getElementById('dealsPanel').hidden=!deals;if(deals)loadDeals()}));
 
 document.getElementById('onSaleCheck').addEventListener('change',e=>document.getElementById('saleFields').style.display=e.target.checked?'flex':'none');
 document.getElementById('freeCheck').addEventListener('change',e=>document.getElementById('priceSection').style.display=e.target.checked?'none':'block');
@@ -373,7 +361,7 @@ async function refreshGameMetadata(gid,button){
    const updates={img:(data&&data.header_image)||steamHeaderImg(g.appid)};
    const genres=extractGenres(data);
    if(genres)updates.genres=genres;
-   if(data&&data.name)updates.title=data.name;Object.assign(updates,badgeFields(data));
+   if(data&&data.name)updates.title=data.name;
    await db.ref('games/'+gid).update(updates);
    return !!genres || !!updates.img;
  }catch(e){
@@ -423,7 +411,7 @@ async function addGame(){
 
  const newRef=db.ref('games').push();
  await newRef.set({
-   by,url,appid,title,img,genres,price,played:false,...badgeFields(data),
+   by,url,appid,title,img,genres,price,played:false,
    addedAt:firebase.database.ServerValue.TIMESTAMP
  });
 
@@ -449,7 +437,7 @@ async function addGame(){
        if(retry&&retry.header_image)updates.img=retry.header_image;
        const retryGenres=extractGenres(retry);
        if(retryGenres)updates.genres=retryGenres;
-       if(retry&&retry.name)updates.title=retry.name;Object.assign(updates,badgeFields(retry));
+       if(retry&&retry.name)updates.title=retry.name;
        if(Object.keys(updates).length)await newRef.update(updates);
 
        err.textContent=retryGenres
