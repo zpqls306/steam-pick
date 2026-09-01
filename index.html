@@ -78,7 +78,7 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
     <h1><svg class="titleLogo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#171a21"/><circle cx="12" cy="12" r="11" fill="none" stroke="#66c0f4" stroke-width="1.2"/><circle cx="8.4" cy="15.2" r="2.1" fill="none" stroke="#66c0f4" stroke-width="1.3"/><circle cx="8.4" cy="15.2" r="0.7" fill="#66c0f4"/><path d="M9.9 13.9 L14.3 10.3" stroke="#66c0f4" stroke-width="1.2"/><circle cx="15.4" cy="9.3" r="2.5" fill="none" stroke="#ffd60a" stroke-width="1.3"/><circle cx="15.4" cy="9.3" r="0.8" fill="#ffd60a"/></svg> STEAM 게임 추천 리스트</h1>
     <button class="lockBtn" id="lockBtn" title="관리자 모드"><span id="lockIcon">🔒</span><span class="lockText">관리자 모드</span></button>
   </div>
-  <div class="verTag">버전: 2026-09-01 v16 (추천인 필터, 공유 추가, 가격·할인·할인종료일 자동 수집)</div>
+  <div class="verTag">버전: 2026-09-01 v17 (가격 자동 수집 실패 시 계속 재시도 + 최종 실패 시 즉시 수동입력 유도)</div>
 
   <div class="adminCard" id="adminCard">
     <h3>⚙️ 관리자 모드 — 게임 추가</h3>
@@ -375,6 +375,33 @@ async function fetchRealDetails(appid){
 }
 
 /*
+ 가격이 확인될 때까지 재시도:
+ addGame/refreshGameMetadata에서 씁니다. fetchRealDetails() 한 번으로 가격이
+ 안 잡히면(네트워크/프록시 실패 등) 백오프를 두고 최대 6번까지 다시 시도합니다.
+ 무료 게임(is_free) 이거나 price_overview가 잡히면 그 즉시 성공으로 보고 멈춥니다.
+ (스팀에서 아예 내려간 게임처럼 애초에 가격 데이터가 존재하지 않는 극소수 케이스는
+ 몇 번을 재시도해도 못 잡으므로, 이때는 마지막으로 얻은 데이터를 반환하고
+ 호출 측에서 "가격 수정"으로 수동 입력을 받도록 처리합니다.)
+*/
+async function fetchDetailsUntilPriceKnown(appid,onProgress){
+  const delays=[0,1500,3000,6000,12000,20000];
+  let best=null;
+  for(let i=0;i<delays.length;i++){
+    if(delays[i])await new Promise(r=>setTimeout(r,delays[i]));
+    if(onProgress)onProgress(i+1,delays.length);
+    try{
+      const d=await fetchRealDetails(appid);
+      if(d){
+        best=d;
+        const priceKnown=d.is_free||(d.price_overview&&d.price_overview.initial!=null);
+        if(priceKnown)return best;
+      }
+    }catch(e){}
+  }
+  return best
+}
+
+/*
  리뷰 요약(평가) 가져오기:
  Steam appreviews API의 query_summary에서 review_score, review_score_desc,
  total_positive/negative를 가져옵니다. num_per_page=0으로 실제 리뷰 목록은
@@ -489,13 +516,16 @@ async function refreshGameMetadata(gid,button){
  if(button){button.disabled=true;button.textContent='⏳ 불러오는 중...'}
 
  try{
-   const [data,review]=await Promise.allSettled([fetchRealDetails(g.appid),fetchReviewSummary(g.appid)])
-     .then(r=>[r[0].status==='fulfilled'?r[0].value:null,r[1].status==='fulfilled'?r[1].value:null]);
+   const reviewPromise=fetchReviewSummary(g.appid).catch(()=>null);
+   const data=await fetchDetailsUntilPriceKnown(g.appid,(n,total)=>{
+     if(button)button.textContent=n===1?'⏳ 불러오는 중...':'⏳ 가격 재시도 ('+n+'/'+total+')';
+   });
+   const review=await reviewPromise;
    const updates={img:(data&&data.header_image)||steamHeaderImg(g.appid)};
    const genres=extractGenres(data);
    if(genres)updates.genres=genres;
    if(data&&data.name)updates.title=data.name;
-   // 메타크리틱/리뷰/가격은 못 가져와도(실패 시 null) 기존 값을 지우지 않고 그대로 둡니다.
+   // 메타크리틱/리뷰는 못 가져와도(실패 시 null) 기존 값을 지우지 않고 그대로 둡니다.
    if(data&&data.metacritic!=null)updates.metacritic=data.metacritic;
    if(review)updates.review=review;
    let endDate='';
@@ -505,6 +535,10 @@ async function refreshGameMetadata(gid,button){
    const price=priceFromDetails(data,endDate);
    if(price)updates.price=price;
    await db.ref('games/'+gid).update(updates);
+   if(!price&&!g.price){
+     // 이 게임이 원래도 가격이 없었고 이번에도 못 가져왔으면, 관리자가 바로 알아채도록 가격 수정으로 유도
+     setTimeout(()=>openPriceModal(gid),150);
+   }
    return !!genres || !!updates.img;
  }catch(e){
    return false;
@@ -541,16 +575,15 @@ async function addGame(){
  btn.disabled=true;
  btn.textContent='Steam 정보 불러오는 중...';
 
- let data=null,review=null,endDate='';
- try{
-   const settled=await Promise.allSettled([fetchRealDetails(appid),fetchReviewSummary(appid)]);
-   data=settled[0].status==='fulfilled'?settled[0].value:null;
-   review=settled[1].status==='fulfilled'?settled[1].value:null;
-   // 할인 종료일은 정가/할인가와 별도의(비공식) API라 실패해도 나머지 흐름을 막지 않게 따로 시도
-   if(data&&data.price_overview&&data.price_overview.discount_percent>0){
-     endDate=await fetchDiscountEndDate(appid).catch(()=>'');
-   }
- }catch(e){}
+ const reviewPromise=fetchReviewSummary(appid).catch(()=>null);
+ const data=await fetchDetailsUntilPriceKnown(appid,(n,total)=>{
+   btn.textContent=n===1?'Steam 정보 불러오는 중...':'가격 정보 재시도 중 ('+n+'/'+total+')...';
+ });
+ const review=await reviewPromise;
+ let endDate='';
+ if(data&&data.price_overview&&data.price_overview.discount_percent>0){
+   endDate=await fetchDiscountEndDate(appid).catch(()=>'');
+ }
 
  const img=(data&&data.header_image)||steamHeaderImg(appid);
  const genres=extractGenres(data);
@@ -563,55 +596,30 @@ async function addGame(){
    by,url,appid,title,img,genres,played:false,
    addedAt:firebase.database.ServerValue.TIMESTAMP
  };
- // 메타크리틱/리뷰/가격은 못 가져왔을 때(null) 아예 필드를 안 넣어서 카드에서 조용히 생략되게 합니다.
- // 가격은 나중에라도 관리자가 "가격 수정"으로 채울 수 있습니다.
  if(metacritic!=null)initialDoc.metacritic=metacritic;
  if(review)initialDoc.review=review;
  if(price)initialDoc.price=price;
  await newRef.set(initialDoc);
+ GAMES[newRef.key]=initialDoc; // 실시간 리스너 반영 전에도 관리 모달이 바로 열리도록 로컬에도 채워둠
 
  document.getElementById('byInput').value='';
  document.getElementById('urlInput').value='';
  btn.disabled=false;
  btn.textContent='추가';
 
- // 첫 수집에서 장르·리뷰·메타크리틱·가격 중 뭐라도 비었으면 자동으로 한 번 더 재시도
- if(!genres||!review||metacritic==null||!price){
-   err.textContent='장르·평가·가격 정보를 한 번 더 확인 중입니다...';
-   err.style.color='var(--sub)';
-   err.style.display='block';
-
-   setTimeout(async()=>{
-     try{
-       const [retry,retryReview]=await Promise.allSettled([fetchRealDetails(appid),fetchReviewSummary(appid)])
-         .then(r=>[r[0].status==='fulfilled'?r[0].value:null,r[1].status==='fulfilled'?r[1].value:null]);
-       let retryEndDate='';
-       if(retry&&retry.price_overview&&retry.price_overview.discount_percent>0){
-         retryEndDate=await fetchDiscountEndDate(appid).catch(()=>'');
-       }
-       const retryPrice=priceFromDetails(retry,retryEndDate);
-       const updates={};
-       if(retry&&retry.header_image)updates.img=retry.header_image;
-       const retryGenres=extractGenres(retry);
-       if(retryGenres)updates.genres=retryGenres;
-       if(retry&&retry.name)updates.title=retry.name;
-       if(retry&&retry.metacritic!=null)updates.metacritic=retry.metacritic;
-       if(retryReview)updates.review=retryReview;
-       if(retryPrice)updates.price=retryPrice;
-       if(Object.keys(updates).length)await newRef.update(updates);
-
-       err.textContent=retryGenres
-         ? '✓ 이미지 및 장르 정보를 정상적으로 가져왔습니다.'
-         : '⚠️ 이미지는 등록됐지만 Steam 장르 응답이 지연되고 있습니다. 관리자 모드의 정보 새로고침으로 다시 확인할 수 있습니다.';
-       err.style.color=retryGenres?'var(--accent)':'var(--sub)';
-       err.style.display='block';
-     }catch(e){}
-   },1200);
- }else{
-   err.textContent='✓ 이미지 및 장르 정보를 정상적으로 가져왔습니다.';
+ if(price){
+   err.textContent='✓ 이미지·장르·가격·평가 정보를 모두 정상적으로 가져왔습니다.';
    err.style.color='var(--accent)';
    err.style.display='block';
-   setTimeout(()=>err.style.display='none',2200);
+   setTimeout(()=>err.style.display='none',2500);
+ }else{
+   // 여러 번 재시도했는데도 가격을 못 가져온 경우: 조용히 빈 채로 두지 않고
+   // 바로 가격 수정 창을 띄워서 관리자가 그 자리에서 채우게 합니다.
+   err.textContent='⚠️ 여러 번 재시도했지만 스팀에서 가격 정보를 가져오지 못했어요. 아래에서 직접 입력해주세요.';
+   err.style.color='var(--accent2)';
+   err.style.display='block';
+   openManageModal(newRef.key);
+   openPriceModal(newRef.key);
  }
 }
 document.getElementById('addBtn').addEventListener('click',addGame);document.getElementById('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')addGame()});
