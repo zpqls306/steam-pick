@@ -45,6 +45,7 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
 .manageActions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.manageActions button{padding:9px 12px}
 .sectionTitle{font-family:var(--font-display);font-size:12px;color:var(--gold);letter-spacing:.5px;margin:16px 0 9px;padding-top:14px;border-top:1px solid #1a212e}
 .filterRow{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}.filterRow input{flex:2;min-width:160px}.filterRow select{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:13px}
+.toggleFilterBtn.active{background:var(--accent);color:#04121c;border-color:var(--accent);font-weight:800}
 .gameGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
 .gameCard{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;text-decoration:none;color:var(--text);display:block;isolation:isolate;transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s ease}
 /* 테두리에만 딱 붙는 그라데이션 링 — 회전 없이 페이드인만 */
@@ -53,7 +54,12 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
 .gameCard:hover{transform:translateY(-4px)}
 .gameCard:hover::after{opacity:1}
 .gameCard:hover .thumb{transform:scale(1.04);filter:brightness(1.08) saturate(1.1)}
-.gameCard.played{opacity:1}.gameCard .playedBadge{position:absolute;top:8px;right:8px;background:var(--accent2);color:#fff;font-size:13px;font-weight:800;padding:4px 10px;border-radius:5px;font-family:var(--font-display);letter-spacing:.5px;z-index:2}
+.gameCard.played{opacity:1}
+.gameCard .playedOverlay{position:absolute;top:0;left:0;right:0;aspect-ratio:460/215;z-index:3;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.gameCard .playedOverlay::before,.gameCard .playedOverlay::after{content:'';position:absolute;left:-8%;right:-8%;top:50%;height:8%;background:rgba(255,45,111,.5);border-radius:3px}
+.gameCard .playedOverlay::before{transform:rotate(25deg)}
+.gameCard .playedOverlay::after{transform:rotate(-25deg)}
+.gameCard .playedLabel{position:relative;z-index:4;background:rgba(4,6,10,.82);color:#fff;font-weight:800;font-size:13px;padding:5px 14px;border-radius:6px;font-family:var(--font-display);letter-spacing:1px;white-space:nowrap}
 .gameCard .thumb{width:100%;aspect-ratio:460/215;object-fit:cover;background:#0d1119;display:block}.gameCard .info{padding:12px 14px}.gameCard .gTitle{font-weight:700;font-size:13.5px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gameCard .recBadge{position:absolute;top:8px;left:8px;background:rgba(4,6,10,.75);color:var(--accent);font-weight:700;font-size:12.5px;padding:5px 10px;border-radius:6px;z-index:2;backdrop-filter:blur(2px);border:1px solid rgba(102,192,244,.4)}
 .gameCard .genreTags{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}.gameCard .genreTag{font-size:9.5px;background:var(--panel2);border:1px solid var(--border);color:var(--sub);padding:2px 6px;border-radius:4px;font-family:var(--font-display)}
 .gameCard .ratingLine{margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -76,17 +82,21 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
 <div class="wrap">
   <div class="appHeader">
     <h1><svg class="titleLogo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#171a21"/><circle cx="12" cy="12" r="11" fill="none" stroke="#66c0f4" stroke-width="1.2"/><circle cx="8.4" cy="15.2" r="2.1" fill="none" stroke="#66c0f4" stroke-width="1.3"/><circle cx="8.4" cy="15.2" r="0.7" fill="#66c0f4"/><path d="M9.9 13.9 L14.3 10.3" stroke="#66c0f4" stroke-width="1.2"/><circle cx="15.4" cy="9.3" r="2.5" fill="none" stroke="#ffd60a" stroke-width="1.3"/><circle cx="15.4" cy="9.3" r="0.8" fill="#ffd60a"/></svg> STEAM 게임 추천 리스트</h1>
-    <button class="lockBtn" id="lockBtn" title="관리자 모드"><span id="lockIcon">🔒</span><span class="lockText">관리자 모드</span></button>
+    <button class="lockBtn" id="lockBtn" title="관리"><span id="lockIcon">🔒</span><span class="lockText">관리</span></button>
   </div>
-  <div class="verTag">버전: 2026-09-01 v18 (가격 자동수집 KRW 100배 오류 수정)</div>
+  <div class="verTag">버전: 2026-09-01 v21 (이미지·장르·가격 수집 소스 신뢰도 학습 시스템 추가)</div>
 
   <div class="adminCard" id="adminCard">
-    <h3>⚙️ 관리자 모드 — 게임 추가</h3>
+    <h3>⚙️ 관리 — 게임 추가</h3>
     <div class="formRow"><div><input id="byInput" type="text" placeholder="추천한 사람 이름"></div><div><input id="urlInput" type="text" placeholder="스팀 게임 URL (store.steampowered.com/app/...)"></div></div>
     <div style="font-size:11.5px;color:var(--sub);margin:-4px 0 14px">💡 가격·할인 정보는 스팀에서 자동으로 가져와요. 안 맞으면 추가 후 "가격 수정"으로 고칠 수 있어요.</div>
     <button class="btnPrimary" id="addBtn">추가</button><div class="err" id="addErr"></div>
   </div>
 <div class="filterRow"><input id="searchInput" type="text" placeholder="🔍 게임 이름 검색..."><select id="genreFilter"><option value="">전체 장르</option></select><select id="byFilter"><option value="">전체 추천인</option></select></div>
+<div class="filterRow" id="specialFilterRow">
+  <button class="btnGhost toggleFilterBtn" id="expiringSoonBtn">⏰ 곧 할인종료 게임</button>
+  <button class="btnGhost toggleFilterBtn" id="endedSaleBtn" style="display:none">⚠️ 할인 종료된 게임</button>
+</div>
   <div class="gameGrid" id="gameGrid"><div class="emptyMsg">불러오는 중...</div></div>
 </div>
 <button id="scrollTopBtn" title="맨 위로">↑</button>
@@ -227,8 +237,39 @@ function parseSteamPage(text){
     .map(x=>x.textContent.trim()).filter(Boolean);
   return {name:title,header_image:img,genres:limitGenres(genres).map(description=>({description}))}
 }
-async function collectAll(tasks){
-  const r=await Promise.allSettled(tasks.map(fn=>fn()));
+/*
+ 소스 신뢰도 학습:
+ 이미지/장르/가격을 여러 경로(direct fetch, allorigins, codetabs, corsproxy 등)로
+ 동시에 시도하는데, 지금까지는 그냥 배열에 적힌 순서로 우선순위가 고정이었습니다.
+ 이제 각 경로가 성공/실패할 때마다 Firebase에 통계를 기록해두고, 다음 요청부터는
+ 라플라스 스무딩한 성공률이 높은 경로를 우선적으로 신뢰합니다. 여러 경로에서
+ 서로 다른 값이 왔을 때 더 믿을만한 쪽 데이터를 채택하게 되는 효과가 있고,
+ 이 통계는 Firebase에 공유 저장되므로 사이트 전체 사용 이력이 누적됩니다.
+*/
+let SOURCE_STATS={};
+db.ref('sourceStats').once('value').then(s=>{SOURCE_STATS=s.val()||{}}).catch(()=>{});
+function sourceScore(key){
+  const st=SOURCE_STATS[key];
+  if(!st)return 0.5;
+  const s=st.s||0,f=st.f||0;
+  return (s+1)/(s+f+2)
+}
+function recordSourceResult(key,success){
+  SOURCE_STATS[key]=SOURCE_STATS[key]||{s:0,f:0};
+  if(success)SOURCE_STATS[key].s++;else SOURCE_STATS[key].f++;
+  db.ref('sourceStats/'+key).transaction(cur=>{
+    cur=cur||{s:0,f:0};
+    if(success)cur.s=(cur.s||0)+1;else cur.f=(cur.f||0)+1;
+    return cur
+  }).catch(()=>{});
+}
+function withStat(key,fn){
+  return fn().then(v=>{recordSourceResult(key,!!v);return v})
+    .catch(e=>{recordSourceResult(key,false);throw e})
+}
+async function collectAllRanked(taskDefs){
+  const sorted=[...taskDefs].sort((a,b)=>sourceScore(b.key)-sourceScore(a.key));
+  const r=await Promise.allSettled(sorted.map(t=>withStat(t.key,t.run)));
   return r.filter(x=>x.status==='fulfilled'&&x.value).map(x=>x.value)
 }
 
@@ -269,19 +310,17 @@ function reviewBadgeText(review){
 
 /*
  가격 자동 수집:
- - 정가/할인가/할인율은 appdetails의 price_overview에서 가져옵니다(공식 필드, 안정적).
-   KRW는 소수점이 없는 통화라 100으로 나누지 않고 그대로 원화로 씁니다.
- - 할인 종료일은 공식 문서에 없는 필드라, 스팀의 신형(비공식) 스토어 API에서
-   best-effort로만 시도합니다. 실패하거나 값이 없으면 그냥 빈 값으로 둬서
-   관리자가 "가격 수정"에서 직접 채울 수 있게 합니다.
+ 정가/할인가/할인율은 appdetails의 price_overview에서 가져옵니다(공식 필드, 안정적).
+ KRW를 포함한 모든 통화가 100을 곱한 값으로 내려오므로 항상 100으로 나눕니다.
+ 할인 종료일은 공식 API에 없는 필드라 자동 수집을 시도했었지만, 세일 이벤트로 걸린
+ 일반적인 할인은 대부분 못 잡아내고 느리기만 해서 제거했습니다. 할인 종료일은
+ 관리자가 "가격 수정"에서 직접 입력합니다.
 */
 function wonFromSteamPrice(amount,currency){
   if(amount==null)return 0;
-  // 스팀 price_overview는 KRW도 다른 통화와 동일하게 100을 곱해서 내려줍니다
-  // (예: 22,000원 -> 2200000). 그래서 통화 상관없이 항상 100으로 나눕니다.
   return Math.round(amount/100)
 }
-function priceFromDetails(data,endDate){
+function priceFromDetails(data){
   if(!data)return null;
   if(data.is_free)return {free:true};
   const p=data.price_overview;
@@ -289,29 +328,9 @@ function priceFromDetails(data,endDate){
   const original=wonFromSteamPrice(p.initial,p.currency);
   const current=wonFromSteamPrice(p.final,p.currency);
   if(p.discount_percent>0){
-    return {onSale:true,original,current,endDate:endDate||''}
+    return {onSale:true,original,current,endDate:''}
   }
   return {onSale:false,base:current||original}
-}
-async function fetchDiscountEndDate(appid){
-  const payload=JSON.stringify({ids:[{appid:+appid}],context:{country_code:'KR',language:'koreana'},data_request:{include_all_purchase_options:true}});
-  const api='https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json='+encodeURIComponent(payload);
-  const tasks=[
-    ()=>fetchJSON(api).then(j=>j?.response?.store_items?.[0]||null),
-    ()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j?.response?.store_items?.[0]||null),
-    ()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api)).then(j=>j?.response?.store_items?.[0]||null)
-  ];
-  try{
-    const results=await collectAll(tasks);
-    const item=results.find(Boolean);
-    const ts=item?.best_purchase_option?.active_discounts?.[0]?.discount_end_date;
-    if(!ts)return '';
-    const d=new Date(ts*1000);
-    const kst=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Seoul'}));
-    return (kst.getMonth()+1)+'/'+kst.getDate()+'일까지'
-  }catch(e){
-    return ''
-  }
 }
 
 /*
@@ -328,27 +347,27 @@ async function fetchRealDetails(appid){
   const page='https://store.steampowered.com/app/'+appid+'/?cc=kr&l=korean';
 
   const apiTasks=[
-    ()=>fetchJSON(api).then(j=>j?.[appid]?.success?j[appid].data:null),
-    ()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null),
-    ()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
+    {key:'api_direct',run:()=>fetchJSON(api).then(j=>j?.[appid]?.success?j[appid].data:null)},
+    {key:'api_allorigins_raw',run:()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)},
+    {key:'api_allorigins_get',run:()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
       const x=typeof j?.contents==='string'?JSON.parse(j.contents):j;
       return x?.[appid]?.success?x[appid].data:null
-    }),
-    ()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null),
-    ()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)
+    })},
+    {key:'api_codetabs',run:()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)},
+    {key:'api_corsproxy',run:()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)}
   ];
   const pageTasks=[
-    ()=>fetchText('https://api.allorigins.win/raw?url='+encodeURIComponent(page)).then(parseSteamPage),
-    ()=>fetchText('https://api.allorigins.win/get?url='+encodeURIComponent(page)).then(parseSteamPage),
-    ()=>fetchText('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(page)).then(parseSteamPage),
-    ()=>fetchText('https://corsproxy.io/?'+encodeURIComponent(page)).then(parseSteamPage)
+    {key:'page_allorigins_raw',run:()=>fetchText('https://api.allorigins.win/raw?url='+encodeURIComponent(page)).then(parseSteamPage)},
+    {key:'page_allorigins_get',run:()=>fetchText('https://api.allorigins.win/get?url='+encodeURIComponent(page)).then(parseSteamPage)},
+    {key:'page_codetabs',run:()=>fetchText('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(page)).then(parseSteamPage)},
+    {key:'page_corsproxy',run:()=>fetchText('https://corsproxy.io/?'+encodeURIComponent(page)).then(parseSteamPage)}
   ];
-  const spyTask=()=>fetchJSON('https://steamspy.com/api.php?request=appdetails&appid='+appid,7000)
-    .then(d=>d?{name:d.name||'',genres:limitGenres(genresFromText(d.genre)).map(description=>({description}))}:null);
+  const spyTask={key:'steamspy',run:()=>fetchJSON('https://steamspy.com/api.php?request=appdetails&appid='+appid,7000)
+    .then(d=>d?{name:d.name||'',genres:limitGenres(genresFromText(d.genre)).map(description=>({description}))}:null)};
 
   let apiResults=[],pageResults=[],spyResults=[];
   for(let round=0;round<2;round++){
-    const [apis,pages,spies]=await Promise.all([collectAll(apiTasks),collectAll(pageTasks),collectAll([spyTask])]);
+    const [apis,pages,spies]=await Promise.all([collectAllRanked(apiTasks),collectAllRanked(pageTasks),collectAllRanked([spyTask])]);
     apiResults.push(...apis); pageResults.push(...pages); spyResults.push(...spies);
 
     const official=limitGenres(apiResults.flatMap(x=>Array.isArray(x&&x.genres)?x.genres:[]));
@@ -377,33 +396,6 @@ async function fetchRealDetails(appid){
 }
 
 /*
- 가격이 확인될 때까지 재시도:
- addGame/refreshGameMetadata에서 씁니다. fetchRealDetails() 한 번으로 가격이
- 안 잡히면(네트워크/프록시 실패 등) 백오프를 두고 최대 6번까지 다시 시도합니다.
- 무료 게임(is_free) 이거나 price_overview가 잡히면 그 즉시 성공으로 보고 멈춥니다.
- (스팀에서 아예 내려간 게임처럼 애초에 가격 데이터가 존재하지 않는 극소수 케이스는
- 몇 번을 재시도해도 못 잡으므로, 이때는 마지막으로 얻은 데이터를 반환하고
- 호출 측에서 "가격 수정"으로 수동 입력을 받도록 처리합니다.)
-*/
-async function fetchDetailsUntilPriceKnown(appid,onProgress){
-  const delays=[0,1500,3000,6000,12000,20000];
-  let best=null;
-  for(let i=0;i<delays.length;i++){
-    if(delays[i])await new Promise(r=>setTimeout(r,delays[i]));
-    if(onProgress)onProgress(i+1,delays.length);
-    try{
-      const d=await fetchRealDetails(appid);
-      if(d){
-        best=d;
-        const priceKnown=d.is_free||(d.price_overview&&d.price_overview.initial!=null);
-        if(priceKnown)return best;
-      }
-    }catch(e){}
-  }
-  return best
-}
-
-/*
  리뷰 요약(평가) 가져오기:
  Steam appreviews API의 query_summary에서 review_score, review_score_desc,
  total_positive/negative를 가져옵니다. num_per_page=0으로 실제 리뷰 목록은
@@ -413,16 +405,16 @@ async function fetchDetailsUntilPriceKnown(appid,onProgress){
 async function fetchReviewSummary(appid){
   const api='https://store.steampowered.com/appreviews/'+appid+'?json=1&language=all&purchase_type=all&num_per_page=0';
   const tasks=[
-    ()=>fetchJSON(api).then(j=>j&&j.success?j.query_summary:null),
-    ()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null),
-    ()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
+    {key:'review_direct',run:()=>fetchJSON(api).then(j=>j&&j.success?j.query_summary:null)},
+    {key:'review_allorigins_raw',run:()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null)},
+    {key:'review_allorigins_get',run:()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
       const x=typeof j?.contents==='string'?JSON.parse(j.contents):j;
       return x&&x.success?x.query_summary:null
-    }),
-    ()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null),
-    ()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null)
+    })},
+    {key:'review_codetabs',run:()=>fetchJSON('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null)},
+    {key:'review_corsproxy',run:()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null)}
   ];
-  const results=await collectAll(tasks);
+  const results=await collectAllRanked(tasks);
   const qs=results.find(Boolean);
   if(!qs)return null;
   return {
@@ -436,7 +428,36 @@ async function fetchReviewSummary(appid){
 function extractGenres(data){return limitGenres(Array.isArray(data&&data.genres)?data.genres:[]).join(', ')}
 function formatKRW(n){return '₩'+Math.round(n).toLocaleString()}
 function priceHtml(price){if(!price)return '';if(price.free)return '<div class="priceLine"><span class="priceFree">무료 플레이</span></div>';if(price.onSale&&price.original&&price.current){const pct=Math.round((1-price.current/price.original)*100);return '<div class="priceLine"><span class="discountBadge">-'+pct+'%</span><span class="priceOrig">'+formatKRW(price.original)+'</span><span class="priceFinal">'+formatKRW(price.current)+'</span>'+(price.endDate?'<span class="priceEnd">'+escapeHtml(price.endDate)+'</span>':'')+'</div>'}if(price.base)return '<div class="priceLine"><span class="priceFinal">'+formatKRW(price.base)+'</span></div>';return ''}
-let SEARCH_QUERY='',GENRE_FILTER='',BY_FILTER='';
+
+/*
+ 할인 종료일("9/8일까지" 같은 자유 텍스트) 파싱:
+ 관리자가 수동으로 입력한 문자열에서 월/일만 뽑아서 오늘 기준 며칠 남았는지 계산합니다.
+ 이미 지난 날짜면(연도가 안 적혀 있으므로) 내년으로 넘어간 걸로 간주합니다.
+ 형식이 안 맞으면(파싱 실패) null을 반환하고, 그런 게임은 두 필터 어디에도 안 걸립니다.
+*/
+function daysUntilEndDate(endDateStr){
+  if(!endDateStr)return null;
+  const m=endDateStr.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+  if(!m)return null;
+  const month=+m[1],day=+m[2];
+  if(month<1||month>12||day<1||day>31)return null;
+  const now=new Date();
+  const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  let target=new Date(now.getFullYear(),month-1,day);
+  if(target<todayMid)target=new Date(now.getFullYear()+1,month-1,day);
+  return Math.round((target-todayMid)/86400000)
+}
+function isExpiringSoon(endDateStr){
+  const d=daysUntilEndDate(endDateStr);
+  return d!=null&&d>=0&&d<=3
+}
+let SEARCH_QUERY='',GENRE_FILTER='',BY_FILTER='',EXPIRING_ONLY=false,ENDED_ONLY=false;
+function updateSpecialFilterCounts(){
+  const expiringCount=Object.values(GAMES).filter(g=>g.price&&g.price.onSale&&isExpiringSoon(g.price.endDate)).length;
+  const endedCount=Object.values(GAMES).filter(g=>g.price&&g.price.onSale&&daysUntilEndDate(g.price.endDate)<0).length;
+  document.getElementById('expiringSoonBtn').textContent='⏰ 곧 할인종료 게임 (3일 이내)'+(expiringCount?' ('+expiringCount+')':'');
+  document.getElementById('endedSaleBtn').textContent='⚠️ 할인 종료된 게임'+(endedCount?' ('+endedCount+')':'');
+}
 function updateGenreOptions(){const select=document.getElementById('genreFilter'),current=select.value,set=new Set();Object.values(GAMES).forEach(g=>(g.genres||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(x=>set.add(x)));select.innerHTML='<option value="">전체 장르</option>'+[...set].sort().map(x=>'<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('');select.value=current}
 function updateByOptions(){const select=document.getElementById('byFilter'),current=select.value,set=new Set();Object.values(GAMES).forEach(g=>{if((g.by||'').trim())set.add(g.by.trim())});select.innerHTML='<option value="">전체 추천인</option>'+[...set].sort((a,b)=>a.localeCompare(b,'ko')).map(x=>'<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('');select.value=current}
 function renderGallery(){
@@ -450,6 +471,8 @@ function renderGallery(){
  if(SEARCH_QUERY){const q=SEARCH_QUERY.toLowerCase();entries=entries.filter(([,g])=>(g.title||'').toLowerCase().includes(q))}
  if(GENRE_FILTER)entries=entries.filter(([,g])=>(g.genres||'').split(',').map(x=>x.trim()).includes(GENRE_FILTER));
  if(BY_FILTER)entries=entries.filter(([,g])=>(g.by||'').trim()===BY_FILTER);
+ if(EXPIRING_ONLY)entries=entries.filter(([,g])=>g.price&&g.price.onSale&&isExpiringSoon(g.price.endDate));
+ if(ENDED_ONLY)entries=entries.filter(([,g])=>g.price&&g.price.onSale&&daysUntilEndDate(g.price.endDate)<0);
 
  grid.innerHTML='';
  if(!entries.length){grid.innerHTML='<div class="emptyMsg">해당하는 게임이 없어요.</div>';return}
@@ -487,7 +510,7 @@ function renderGallery(){
   const metaBadge=(g.metacritic!=null)?'<span class="metaBadge mc-'+metacriticTier(g.metacritic)+'">Metacritic '+escapeHtml(String(g.metacritic))+'</span>':'';
   const ratingLine=(reviewBadge||metaBadge)?'<div class="ratingLine">'+reviewBadge+metaBadge+'</div>':'';
 
-  card.innerHTML=`${g.played?'<span class="playedBadge">완료</span>':''}
+  card.innerHTML=`${g.played?'<div class="playedOverlay"><span class="playedLabel">플레이함</span></div>':''}
     <div class="recBadge">👤 ${escapeHtml(g.by)} 님 추천</div>
     <img class="thumb" src="${escapeHtml(fallbacks[0])}" alt=""
       data-fallbacks='${escapeHtml(JSON.stringify(fallbacks))}'
@@ -509,7 +532,7 @@ function renderGallery(){
   grid.appendChild(card);
  });
 }
-db.ref('games').on('value',s=>{GAMES=s.val()||{};updateGenreOptions();updateByOptions();renderGallery();});
+db.ref('games').on('value',s=>{GAMES=s.val()||{};updateGenreOptions();updateByOptions();updateSpecialFilterCounts();renderGallery();});
 
 async function refreshGameMetadata(gid,button){
  const g=GAMES[gid];
@@ -518,11 +541,8 @@ async function refreshGameMetadata(gid,button){
  if(button){button.disabled=true;button.textContent='⏳ 불러오는 중...'}
 
  try{
-   const reviewPromise=fetchReviewSummary(g.appid).catch(()=>null);
-   const data=await fetchDetailsUntilPriceKnown(g.appid,(n,total)=>{
-     if(button)button.textContent=n===1?'⏳ 불러오는 중...':'⏳ 가격 재시도 ('+n+'/'+total+')';
-   });
-   const review=await reviewPromise;
+   const [data,review]=await Promise.allSettled([fetchRealDetails(g.appid),fetchReviewSummary(g.appid)])
+     .then(r=>[r[0].status==='fulfilled'?r[0].value:null,r[1].status==='fulfilled'?r[1].value:null]);
    const updates={img:(data&&data.header_image)||steamHeaderImg(g.appid)};
    const genres=extractGenres(data);
    if(genres)updates.genres=genres;
@@ -530,12 +550,12 @@ async function refreshGameMetadata(gid,button){
    // 메타크리틱/리뷰는 못 가져와도(실패 시 null) 기존 값을 지우지 않고 그대로 둡니다.
    if(data&&data.metacritic!=null)updates.metacritic=data.metacritic;
    if(review)updates.review=review;
-   let endDate='';
-   if(data&&data.price_overview&&data.price_overview.discount_percent>0){
-     endDate=await fetchDiscountEndDate(g.appid).catch(()=>'');
+   const price=priceFromDetails(data);
+   if(price){
+     // 할인 종료일은 자동 수집을 안 하므로, 기존에 관리자가 수동으로 넣어둔 값이 있으면 유지합니다.
+     if(price.onSale&&!price.endDate&&g.price&&g.price.onSale&&g.price.endDate)price.endDate=g.price.endDate;
+     updates.price=price;
    }
-   const price=priceFromDetails(data,endDate);
-   if(price)updates.price=price;
    await db.ref('games/'+gid).update(updates);
    if(!price&&!g.price){
      // 이 게임이 원래도 가격이 없었고 이번에도 못 가져왔으면, 관리자가 바로 알아채도록 가격 수정으로 유도
@@ -577,21 +597,14 @@ async function addGame(){
  btn.disabled=true;
  btn.textContent='Steam 정보 불러오는 중...';
 
- const reviewPromise=fetchReviewSummary(appid).catch(()=>null);
- const data=await fetchDetailsUntilPriceKnown(appid,(n,total)=>{
-   btn.textContent=n===1?'Steam 정보 불러오는 중...':'가격 정보 재시도 중 ('+n+'/'+total+')...';
- });
- const review=await reviewPromise;
- let endDate='';
- if(data&&data.price_overview&&data.price_overview.discount_percent>0){
-   endDate=await fetchDiscountEndDate(appid).catch(()=>'');
- }
+ const [data,review]=await Promise.allSettled([fetchRealDetails(appid),fetchReviewSummary(appid)])
+   .then(r=>[r[0].status==='fulfilled'?r[0].value:null,r[1].status==='fulfilled'?r[1].value:null]);
 
  const img=(data&&data.header_image)||steamHeaderImg(appid);
  const genres=extractGenres(data);
  const title=(data&&data.name)||extractTitleFromUrl(url,appid);
  const metacritic=(data&&data.metacritic!=null)?data.metacritic:null;
- const price=priceFromDetails(data,endDate);
+ const price=priceFromDetails(data);
 
  const newRef=db.ref('games').push();
  const initialDoc={
@@ -610,14 +623,14 @@ async function addGame(){
  btn.textContent='추가';
 
  if(price){
-   err.textContent='✓ 이미지·장르·가격·평가 정보를 모두 정상적으로 가져왔습니다.';
+   err.textContent='✓ 이미지·장르·가격·평가 정보를 정상적으로 가져왔습니다.';
    err.style.color='var(--accent)';
    err.style.display='block';
    setTimeout(()=>err.style.display='none',2500);
  }else{
-   // 여러 번 재시도했는데도 가격을 못 가져온 경우: 조용히 빈 채로 두지 않고
-   // 바로 가격 수정 창을 띄워서 관리자가 그 자리에서 채우게 합니다.
-   err.textContent='⚠️ 여러 번 재시도했지만 스팀에서 가격 정보를 가져오지 못했어요. 아래에서 직접 입력해주세요.';
+   // 가격을 못 가져온 경우: 조용히 빈 채로 두지 않고 바로 가격 수정 창을 띄워서
+   // 관리자가 그 자리에서 채우게 합니다.
+   err.textContent='⚠️ 스팀에서 가격 정보를 가져오지 못했어요. 아래에서 직접 입력해주세요.';
    err.style.color='var(--accent2)';
    err.style.display='block';
    openManageModal(newRef.key);
@@ -732,14 +745,28 @@ function applyPendingShare(){
   PENDING_SHARE_URL=null;
 }
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
-function submitPin(){if(document.getElementById('pinInput').value===ADMIN_PIN){IS_ADMIN=true;document.getElementById('adminCard').classList.add('show');document.getElementById('lockIcon').textContent='🔓';document.getElementById('lockBtn').classList.add('unlocked');closePinModal();applyPendingShare()}else{const e=document.getElementById('pinErr');e.textContent='PIN이 틀렸어요.';e.style.display='block'}}
-document.getElementById('lockBtn').addEventListener('click',()=>{if(IS_ADMIN){IS_ADMIN=false;document.getElementById('adminCard').classList.remove('show');document.getElementById('lockIcon').textContent='🔒';document.getElementById('lockBtn').classList.remove('unlocked')}else openPinModal()});document.getElementById('pinSubmitBtn').addEventListener('click',submitPin);document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitPin()});document.getElementById('pinCancelBtn').addEventListener('click',closePinModal);
+function submitPin(){if(document.getElementById('pinInput').value===ADMIN_PIN){IS_ADMIN=true;document.getElementById('adminCard').classList.add('show');document.getElementById('lockIcon').textContent='🔓';document.getElementById('lockBtn').classList.add('unlocked');document.getElementById('endedSaleBtn').style.display='';closePinModal();applyPendingShare()}else{const e=document.getElementById('pinErr');e.textContent='PIN이 틀렸어요.';e.style.display='block'}}
+document.getElementById('lockBtn').addEventListener('click',()=>{if(IS_ADMIN){IS_ADMIN=false;document.getElementById('adminCard').classList.remove('show');document.getElementById('lockIcon').textContent='🔒';document.getElementById('lockBtn').classList.remove('unlocked');document.getElementById('endedSaleBtn').style.display='none';if(ENDED_ONLY){ENDED_ONLY=false;document.getElementById('endedSaleBtn').classList.remove('active');renderGallery()}}else openPinModal()});document.getElementById('pinSubmitBtn').addEventListener('click',submitPin);document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitPin()});document.getElementById('pinCancelBtn').addEventListener('click',closePinModal);
 document.querySelectorAll('.modalBg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg){bg.classList.remove('open');if(bg.id==='manageModalBg'){CURRENT_MANAGE_ID=null;CURRENT_EDIT_ID=null;showManageMain()}}}));document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{
  const bg=document.getElementById(b.dataset.close);
  bg.classList.remove('open');
  if(bg.id==='manageModalBg'){CURRENT_MANAGE_ID=null;CURRENT_EDIT_ID=null;showManageMain()}
 }));
 document.getElementById('searchInput').addEventListener('input',e=>{SEARCH_QUERY=e.target.value.trim();renderGallery()});document.getElementById('genreFilter').addEventListener('change',e=>{GENRE_FILTER=e.target.value;renderGallery()});document.getElementById('byFilter').addEventListener('change',e=>{BY_FILTER=e.target.value;renderGallery()});
+document.getElementById('expiringSoonBtn').addEventListener('click',()=>{
+ EXPIRING_ONLY=!EXPIRING_ONLY;
+ if(EXPIRING_ONLY)ENDED_ONLY=false;
+ document.getElementById('expiringSoonBtn').classList.toggle('active',EXPIRING_ONLY);
+ document.getElementById('endedSaleBtn').classList.remove('active');
+ renderGallery();
+});
+document.getElementById('endedSaleBtn').addEventListener('click',()=>{
+ ENDED_ONLY=!ENDED_ONLY;
+ if(ENDED_ONLY)EXPIRING_ONLY=false;
+ document.getElementById('endedSaleBtn').classList.toggle('active',ENDED_ONLY);
+ document.getElementById('expiringSoonBtn').classList.remove('active');
+ renderGallery();
+});
 const topBtn=document.getElementById('scrollTopBtn');window.addEventListener('scroll',()=>topBtn.classList.toggle('show',window.scrollY>400));topBtn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
 checkIncomingShare();
 </script>
