@@ -79,7 +79,7 @@ button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:13
 .expiringBanner .bannerHeadTitle{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.5px}
 .bannerViewport{overflow:hidden;border-radius:10px;border:1px solid var(--border);background:#0d1119}
 .bannerTrack{display:flex;transition:transform .6s cubic-bezier(.4,0,.2,1)}
-.bannerSlide{position:relative;flex:0 0 100%;width:100%;aspect-ratio:460/190;text-decoration:none;display:block}
+.bannerSlide{position:relative;flex:0 0 100%;width:100%;aspect-ratio:460/108;text-decoration:none;display:block}
 .bannerSlide img{width:100%;height:100%;object-fit:cover;display:block}
 .bannerSlide .bannerGradient{position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(4,6,10,.94) 100%)}
 .bannerSlide .bannerInfo{position:absolute;left:0;right:0;bottom:0;padding:12px 16px}
@@ -265,6 +265,15 @@ function parseSteamPage(text){
  서로 다른 값이 왔을 때 더 믿을만한 쪽 데이터를 채택하게 되는 효과가 있고,
  이 통계는 Firebase에 공유 저장되므로 사이트 전체 사용 이력이 누적됩니다.
 */
+/*
+ 구글 앱스 스크립트(Apps Script) 웹앱 프록시.
+ apps-script-proxy.js를 script.google.com에 배포한 뒤 나오는 웹앱 URL을 여기에 붙여넣으세요.
+ 비워두면(빈 문자열) 기존 공개 프록시들만 사용합니다 — 코드가 깨지지 않습니다.
+ 예: 'https://script.google.com/macros/s/AKfycb.../exec'
+*/
+const APPS_SCRIPT_PROXY='https://script.google.com/macros/s/AKfycbzTbxSn4djJ3rxHF9iJLfbB8zI2auDtrIlv_PT-Ldndh-3ddxlEFOVdDQ9M7hymHeQ3sg/exec';
+function viaAppsScript(url){return APPS_SCRIPT_PROXY+'?url='+encodeURIComponent(url)}
+
 let SOURCE_STATS={};
 db.ref('sourceStats').once('value').then(s=>{SOURCE_STATS=s.val()||{}}).catch(()=>{});
 function sourceScore(key){
@@ -367,6 +376,7 @@ async function fetchRealDetails(appid){
 
   const apiTasks=[
     {key:'api_direct',run:()=>fetchJSON(api).then(j=>j?.[appid]?.success?j[appid].data:null)},
+    ...(APPS_SCRIPT_PROXY?[{key:'api_appsscript',run:()=>fetchJSON(viaAppsScript(api)).then(j=>j?.[appid]?.success?j[appid].data:null)}]:[]),
     {key:'api_allorigins_raw',run:()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)},
     {key:'api_allorigins_get',run:()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
       const x=typeof j?.contents==='string'?JSON.parse(j.contents):j;
@@ -376,6 +386,7 @@ async function fetchRealDetails(appid){
     {key:'api_corsproxy',run:()=>fetchJSON('https://corsproxy.io/?'+encodeURIComponent(api)).then(j=>j?.[appid]?.success?j[appid].data:null)}
   ];
   const pageTasks=[
+    ...(APPS_SCRIPT_PROXY?[{key:'page_appsscript',run:()=>fetchText(viaAppsScript(page)).then(parseSteamPage)}]:[]),
     {key:'page_allorigins_raw',run:()=>fetchText('https://api.allorigins.win/raw?url='+encodeURIComponent(page)).then(parseSteamPage)},
     {key:'page_allorigins_get',run:()=>fetchText('https://api.allorigins.win/get?url='+encodeURIComponent(page)).then(parseSteamPage)},
     {key:'page_codetabs',run:()=>fetchText('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(page)).then(parseSteamPage)},
@@ -425,6 +436,7 @@ async function fetchReviewSummary(appid){
   const api='https://store.steampowered.com/appreviews/'+appid+'?json=1&language=all&purchase_type=all&num_per_page=0';
   const tasks=[
     {key:'review_direct',run:()=>fetchJSON(api).then(j=>j&&j.success?j.query_summary:null)},
+    ...(APPS_SCRIPT_PROXY?[{key:'review_appsscript',run:()=>fetchJSON(viaAppsScript(api)).then(j=>j&&j.success?j.query_summary:null)}]:[]),
     {key:'review_allorigins_raw',run:()=>fetchJSON('https://api.allorigins.win/raw?url='+encodeURIComponent(api)).then(j=>j&&j.success?j.query_summary:null)},
     {key:'review_allorigins_get',run:()=>fetchJSON('https://api.allorigins.win/get?url='+encodeURIComponent(api)).then(j=>{
       const x=typeof j?.contents==='string'?JSON.parse(j.contents):j;
