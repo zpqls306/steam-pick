@@ -300,7 +300,7 @@ function parseSteamPage(text){
  비워두면(빈 문자열) 기존 공개 프록시들만 사용합니다 — 코드가 깨지지 않습니다.
  예: 'https://script.google.com/macros/s/AKfycb.../exec'
 */
-const APPS_SCRIPT_PROXY='';
+const APPS_SCRIPT_PROXY='https://script.google.com/macros/s/AKfycbzTbxSn4djJ3rxHF9iJLfbB8zI2auDtrIlv_PT-Ldndh-3ddxlEFOVdDQ9M7hymHeQ3sg/exec';
 function viaAppsScript(url){return APPS_SCRIPT_PROXY+'?url='+encodeURIComponent(url)}
 
 let SOURCE_STATS={};
